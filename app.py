@@ -62,12 +62,14 @@ def auth_factory(app, handler):                                     #验证用�
         cookie_str = request.cookies.get(COOKIE_NAME)
         if cookie_str:                                              #查看用户的类型：并且把当前用户的名字和邮箱
                                                                     #   打印到日志中
-            user = yield from cookie2user(cookie_str)
+                                                                    # 获取到cookie字符串, cookies是用分号分割的一组
+                                                                    #   名-值对，在python中被看成dict
+            user = yield from cookie2user(cookie_str)               #通过反向解析，获取到用户名（这个得递归着看好多）
             if user:
                 logging.info('set current user: %s' % user.email)
                 request.__user__ = user
         if request.path.startswith('/manage/') and (request.__user__ is None or not request.__user__.admin):
-            return web.HTTPFound('/signin')
+            return web.HTTPFound('/signin')                         #非管理员想要进行管理，跳转登录页面
         return (yield from handler(request))                        #验证完用户还是要进行处理的，开始handler
     return auth
 
@@ -75,7 +77,7 @@ def auth_factory(app, handler):                                     #验证用�
 def data_factory(app, handler):                                     #搜集请求的数据
     @asyncio.coroutine
     def parse_data(request):                                        #解析数据，将数据进行部分转化，是它成为可以处理的
-        if request.method == 'POST':                                #向服务器提交的数据
+        if request.method == 'POST':                                #向服务器提交的数据，两种处理方式
             if request.content_type.startswith('application/json'): #提交数据的类型1
                 request.__data__ = yield from request.json()        #主要也就是为了打印日志
                 logging.info('request json: %s' % str(request.__data__))                #开始打印日志
@@ -88,6 +90,18 @@ def data_factory(app, handler):                                     #搜集请�
                                                                     #   不过他没有做什么，要想去具体操作，就要直接
                                                                     #   使用handler 
     return parse_data
+
+# ***********************************************响应处理（重点，重点，重点，重要的事说三遍）***************************************************
+# 总结一下
+# 请求对象request的处理工序流水线先后依次是：
+#       logger_factory->response_factory->RequestHandler().__call__->get或post->handler
+# 对应的响应对象response的处理工序流水线先后依次是:
+#       由handler构造出要返回的具体对象
+#       然后在这个返回的对象上加上'__method__'和'__route__'属性，以标识别这个对象并使接下来的程序容易处理
+#       RequestHandler目的就是从请求对象request的请求content中获取必要的参数，调用URL处理函数,然后把结果返回给response_factory
+#       response_factory在拿到经过处理后的对象，经过一系列类型判断，构造出正确web.Response对象，以正确的方式返回给客户端
+# 在这个过程中，我们只用关心我们的handler的处理就好了，其他的都走统一的通道，如果需要差异化处理，就在通道中选择适合的地方添加处理代码。
+# 注： 在response_factory中应用了jinja2来渲染模板文件
 
 @asyncio.coroutine
 def response_factory(app, handler):                                 #处理后中间层：视图层：就是处理层.传入的handler

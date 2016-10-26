@@ -41,8 +41,9 @@ def user2cookie(user, max_age):                                         #生成�
     # build cookie string by: id-expires-sha1
     expires = str(int(time.time() + max_age))
     s = '%s-%s-%s-%s' % (user.id, user.passwd, expires, _COOKIE_KEY)
-    L = [user.id, expires, hashlib.sha1(s.encode('utf-8')).hexdigest()]
-    return '-'.join(L)
+    L = [user.id, expires, hashlib.sha1(s.encode('utf-8')).hexdigest()] #在这可以看出来cookie一共有三项
+                                                                        #   用户id，协议，安全哈希算法
+    return '-'.join(L)                                                  #返回的内容是加入'-'的字符串
 
 def text2html(text):                                                    #将text文件转化为html文件
     lines = map(lambda s: '<p>%s</p>' % s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;'), filter(lambda s: s.strip() != '', text.split('\n')))
@@ -53,16 +54,16 @@ def cookie2user(cookie_str):                                            #解析c
     '''
     Parse cookie and load user if cookie is valid.
     '''
-    if not cookie_str:
+    if not cookie_str:                                                  #没有cookie字符串就什么也没有了
         return None
     try:
-        L = cookie_str.split('-')
+        L = cookie_str.split('-')                                       #将cookie根据'-'分开，存储在字典中
         if len(L) != 3:
             return None
-        uid, expires, sha1 = L
+        uid, expires, sha1 = L                                          #看见了吧，将这三项分别赋值给三个变量
         if int(expires) < time.time():
             return None
-        user = yield from User.find(uid)
+        user = yield from User.find(uid)                                #user的内容是model中的内容查到的
         if user is None:
             return None
         s = '%s-%s-%s-%s' % (uid, user.passwd, expires, _COOKIE_KEY)
@@ -70,7 +71,7 @@ def cookie2user(cookie_str):                                            #解析c
             logging.info('invalid sha1')
             return None
         user.passwd = '******'                                          #将密码隐去
-        return user
+        return user                                                     #返回的值是用户名
     except Exception as e:
         logging.exception(e)
         return None

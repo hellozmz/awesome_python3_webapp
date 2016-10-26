@@ -217,11 +217,13 @@ class Model(dict, metaclass=ModelMetaclass):                            #定义�
             return None
         return rs[0]['_num_']
 
-    @classmethod
+    @classmethod                                                        #接下来的cls代表的可就是前边的Model了
     @asyncio.coroutine
     def find(cls, pk):                                                  #查找
-        ' find object by primary key. '
+        ' find object by primary key. '                                 #通过主键来找内容
         rs = yield from select('%s where `%s`=?' % (cls.__select__, cls.__primary_key__), [pk], 1)
+                                                                        #在数据库中查找，pk保存主键值，也就是id,匹配1项
+                                                                        #所以才会有调用__select__，__primary_key__情况
         if len(rs) == 0:
             return None
         return cls(**rs[0])
