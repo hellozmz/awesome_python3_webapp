@@ -151,6 +151,7 @@ class RequestHandler(object):                                   #处理请求的
 def add_static(app):                                            #把/static/文件夹中的文件加到目标文件
                                                                 #   添加静态文件路径
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+                                                                #会拼接成路径：./static/
     app.router.add_static('/static/', path)
     logging.info('add static %s => %s' % ('/static/', path))
 

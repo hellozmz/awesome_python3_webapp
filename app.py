@@ -26,22 +26,22 @@ def init_jinja2(app, **kw):                                         #初始化�
     logging.info('init jinja2...')
     options = dict(
         autoescape = kw.get('autoescape', True),                    #jinja2框架中参数
-        block_start_string = kw.get('block_start_string', '{%'),    #jinja2框架中参数
-        block_end_string = kw.get('block_end_string', '%}'),
-        variable_start_string = kw.get('variable_start_string', '{{'),
-        variable_end_string = kw.get('variable_end_string', '}}'),
+        block_start_string = kw.get('block_start_string', '{%'),    #jinja2框架中参数，运行代码开始标识符
+        block_end_string = kw.get('block_end_string', '%}'),        #运行代码的结束标识符
+        variable_start_string = kw.get('variable_start_string', '{{'),  #变量开始的标识符
+        variable_end_string = kw.get('variable_end_string', '}}'),      #变量结束的标识符，在__base__.html中有这四个变量
         auto_reload = kw.get('auto_reload', True)
     )
-    path = kw.get('path', None)
-    if path is None:
+    path = kw.get('path', None)                                     #从参数中获取path字段，也就是模板文件的位置
+    if path is None:                                                #没有的话，就加入自己的模板，几乎都没有
         path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates') #前端模板的文件路径=当前路径+templates
     logging.info('set jinja2 template path: %s' % path)             #打印出来：jinja2加载成功
-    env = Environment(loader=FileSystemLoader(path), **options)
+    env = Environment(loader=FileSystemLoader(path), **options)     #jinja2的和心类，功能是保存配置，全局对象和模板路径的
     filters = kw.get('filters', None)                               #传入参数中是否有过滤器这个项，提取出这个参数
     if filters is not None:                                         #如果没有这个参数的值，自己进行赋值
         for name, f in filters.items():
             env.filters[name] = f
-    app['__templating__'] = env
+    app['__templating__'] = env                                     #给模板赋值，前边有了env，存储的模板路径
 
 @asyncio.coroutine                                                  #拦截器中加载的函数
 def logger_factory(app, handler):                                   #主要进行在控制窗口打印，注意观察，传入的参数是
@@ -155,6 +155,8 @@ def init(loop):
     app = web.Application(loop=loop, middlewares=[                  #app中加入好多参数，参考图片，loop为传入参数，
         logger_factory, auth_factory, response_factory              #   处理前的中间件。整体参见图片
                                                                     #   这三个参数都在前面定义了，都属于中间层的函数
+                                                                    #   middlewares是一种拦截器，一个URL在被某个函数处理前，
+                                                                    #   可以经过一系列的middleware的处理。
     ])
     init_jinja2(app, filters=dict(datetime=datetime_filter))        #在前端框架jinja2中加入时间过滤器
                                                                     #接下来是作者的自注册支持，开始注册函数
@@ -163,8 +165,9 @@ def init(loop):
                                                                     #   博客整体框架单间完成，就可以在handlers中
                                                                     #   加入各个路径的处理函数。一个小宝藏！
                                                                     #   自己可以在这里面加入自己想要的各个功能
-    add_static(app)
-    srv = yield from loop.create_server(app.make_handler(), '127.0.0.1', 9000)      #
+    add_static(app)                                                 #加载静态文件，查了一下coroweb，有说明
+                                                                    #   把/static/文件夹下的内容加进来
+    srv = yield from loop.create_server(app.make_handler(), '127.0.0.1', 9000)      #创建了一个服务器
                                                                     #选择本地的路径和端口号
     logging.info('server started at http://127.0.0.1:9000...')      #打印给人看的话
     return srv
