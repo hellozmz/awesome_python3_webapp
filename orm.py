@@ -27,6 +27,8 @@ def create_pool(loop, **kw):                                            #增加�
         maxsize=kw.get('maxsize', 10),                                  #最大量
         minsize=kw.get('minsize', 1),                                   #最小量
         loop=loop                                                       #循环
+                                                                        #说一下get(a,b)，python自带的函数，返回
+                                                                        #   字典中名字a的项，如果没有返回b值
     )
 
 @asyncio.coroutine
@@ -37,13 +39,15 @@ def select(sql, args, size=None):                                       #执行s
         cur = yield from conn.cursor(aiomysql.DictCursor)               #打开游标
         yield from cur.execute(sql.replace('?', '%s'), args or ())      #SQL语句的占位符和Mysql的不一样
                                                                         #SQL:?  Mysql:%s
+                                                                        #其实加入了库，这些函数都是有的，自己
+                                                                        #   只需要加入参数就好->括号中的都是
         if size:                                                        #主要的部分应该是在这里
             rs = yield from cur.fetchmany(size)                         #根据不同情况，提取不同匹配项
         else:                                                           #匹配指定数目的，具体根据size看
             rs = yield from cur.fetchall()                              #匹配所有的
-        yield from cur.close()
-        logging.info('rows returned: %s' % len(rs))
-        return rs
+        yield from cur.close()                                          #关闭数据库游标
+        logging.info('rows returned: %s' % len(rs))                     #打印出日志
+        return rs                                                       #返回匹配的项。fetchmany是库中的
 
 @asyncio.coroutine
 def execute(sql, args, autocommit=True):                                #执行各种操作：插入，修改，删除
@@ -60,15 +64,18 @@ def execute(sql, args, autocommit=True):                                #执行�
                 yield from conn.commit()                                #开始执行任务
         except BaseException as e:
             if not autocommit:
-                yield from conn.rollback()                              #如果出现问题了，即使回滚
+                yield from conn.rollback()                              #如果出现问题了，及时回滚
             raise
         return affected                                                 #返回整数，表示处理的行数
 
-def create_args_string(num):                                            #创建参数字典
+#注意区分select和其他几个操作Insert等区别：execute()函数和select()函数所不同的是，cursor对象不返回结果集，
+#   而是通过rowcount返回结果数。===>select()返回结果，其他操作返回行数。工作的主体是select
+
+def create_args_string(num):                                            #把参数的个数替换成'?'的字符串
     L = []                                                              #   传入的就是数字，每个元素后加入？后，用，隔开
-    for n in range(num):
-        L.append('?')
-    return ', '.join(L)
+    for n in range(num):                                                #for: num = 5, range(num)=[0,1,2,3,4]
+        L.append('?')                                                   #L = ['?','?','?','?','?']
+    return ', '.join(L)                                                 #'?, ?, ?, ?, ?' ->结果是一个字符串
 
 class Field(object):                                                    #先定义一个基本的基类，为了接下来的。field子类
                                                                         #   不同类型的数据的定义做一个基类
@@ -85,7 +92,11 @@ class Field(object):                                                    #先定�
 
 class StringField(Field):                                               #字符串形式的查询
 
-    def __init__(self, name=None, primary_key=False, default=None, ddl='varchar(100)'): #ddl数据定义语言
+    def __init__(self, name=None, primary_key=False, default=None, ddl='varchar(100)'): 
+                                                                        #DDL(Data Definition Language) 
+                                                                        #   数据库定义语言，包括：
+                                                                        #   CREATE,ALTER,DROP,TRUNCATE,
+                                                                        #   COMMENT,RENAME
         super().__init__(name, ddl, primary_key, default)
 
 class BooleanField(Field):                                              #真假形式的查询

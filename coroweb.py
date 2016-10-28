@@ -157,14 +157,18 @@ def add_static(app):                                            #把/static/文�
 
 def add_route(app, fn):                                         #加入到路径中？？？？？？不理解啊
                                                                 #这个是作者提到的注册函数（一个）。下边的是多个的
-    method = getattr(fn, '__method__', None)
-    path = getattr(fn, '__route__', None)
+                                                                #加入的是路径，代表着加入的是加入的模板页面
+                                                                #参考day2，我认为是绑定页面的函数
+    method = getattr(fn, '__method__', None)                    #主要包括两个方法：get,post
+    path = getattr(fn, '__route__', None)                       #传入的路径
     if path is None or method is None:
         raise ValueError('@get or @post not defined in %s.' % str(fn))
     if not asyncio.iscoroutinefunction(fn) and not inspect.isgeneratorfunction(fn):
         fn = asyncio.coroutine(fn)
     logging.info('add route %s %s => %s(%s)' % (method, path, fn.__name__, ', '.join(inspect.signature(fn).parameters.keys())))
     app.router.add_route(method, path, RequestHandler(app, fn)) #其实是有默认的方法的，写出来都是查看错误的
+                                                                #来看一下啊，一共三个参数，分别代表：
+                                                                #   请求的方法，路径，返回的页面！！！！重点！！！
 
 def add_routes(app, module_name):                               #作者提到的注册函数
     n = module_name.rfind('.')                                  #查看一下'.'的个数
