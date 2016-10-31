@@ -97,6 +97,7 @@ class StringField(Field):                                               #字符�
                                                                         #   数据库定义语言，包括：
                                                                         #   CREATE,ALTER,DROP,TRUNCATE,
                                                                         #   COMMENT,RENAME
+                                                                        #本例子中，ddl对应的是column_type
         super().__init__(name, ddl, primary_key, default)
 
 class BooleanField(Field):                                              #真假形式的查询
@@ -122,22 +123,34 @@ class TextField(Field):                                                 #文字�
 class ModelMetaclass(type):                                             #模型层的基类
 
     def __new__(cls, name, bases, attrs):                               #新建一个属性
-        if name=='Model':
-            return type.__new__(cls, name, bases, attrs)
-        tableName = attrs.get('__table__', None) or name
+                                                                        #   __new__参数要有cls,另外
+                                                                        #   功能是提取当前类的参数，
+                                                                        #   cls代表着这个类ModelMetaclass
+                                                                        #   并且他还会先于__init__运行
+                                                                        #   绑定的是累的对象，不是实例对象
+        if name=='Model':                                               #排除Model类本身
+            return type.__new__(cls, name, bases, attrs)                #传进来的参数全都返回了
+        tableName = attrs.get('__table__', None) or name                #可以得到table表的名字，attr,name是传入的
         logging.info('found model: %s (table: %s)' % (name, tableName))
         mappings = dict()                                               #map映射是一个字典，元组
+                                                                        #   获取所有的Field和主键
         fields = []                                                     #列表
+                                                                        #   列表=可调整数组，
+                                                                        #   元组=不可调整数组=>代码更加安全
         primaryKey = None                                               #未设置主键
         for k, v in attrs.items():                                      #在属性中查找k值
-            if isinstance(v, Field):
-                logging.info('  found mapping: %s ==> %s' % (k, v))
+                                                                        #   属性是什么呢？就是类中定义的内容
+                                                                        #   每一项！！定义的各个变量
+            if isinstance(v, Field):                                    #返回一个Field类型的东西，
+                                                                        #   或者递归滴包含Field也可以
+                logging.info('  found mapping: %s ==> %s' % (k, v))     #k=关键字，v=值
+                                                                        #k是属性，v是值
                 mappings[k] = v                                         #在映射的字典中，将k和v匹配起来
                 if v.primary_key:
                     # 找到主键:
                     if primaryKey:
                         raise StandardError('Duplicate primary key for field: %s' % k)
-                    primaryKey = k
+                    primaryKey = k                                      #前面primaryKey = None,现在再赋值
                 else:
                     fields.append(k)                                #在结尾添加k的值
         if not primaryKey:
@@ -158,7 +171,10 @@ class ModelMetaclass(type):                                             #模型�
                                                                     #修改
         attrs['__delete__'] = 'delete from `%s` where `%s`=?' % (tableName, primaryKey)
                                                                     #删除
-        return type.__new__(cls, name, bases, attrs)
+        return type.__new__(cls, name, bases, attrs)                    #好奇？？？？？返回的什么啊
+
+#通过app.log可以看出来：需要每个model加载一遍（user，blog，comment）
+#   加载完这几个表之后，再加载里面的id等，就是把models.py里面的内容同加载进来，日志中就会输出这些内容
 
 class Model(dict, metaclass=ModelMetaclass):                            #定义一个模型层的类！
 
