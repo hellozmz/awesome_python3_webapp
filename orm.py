@@ -121,6 +121,9 @@ class TextField(Field):                                                 #文字�
     def __init__(self, name=None, default=None):
         super().__init__(name, 'text', False, default)
 
+#Model只是一个基类，如何读出它的子类的映射信息，比如说User的映射信息，就需要meta class
+#这样继承自Model的子类User等就可以扫描出来，并且存储到类属性中，如__table__,__mappings__等
+
 class ModelMetaclass(type):                                             #模型层的基类
 
     def __new__(cls, name, bases, attrs):                               #新建一个属性
@@ -132,6 +135,8 @@ class ModelMetaclass(type):                                             #模型�
         if name=='Model':                                               #排除Model类本身
             return type.__new__(cls, name, bases, attrs)                #传进来的参数全都返回了
         tableName = attrs.get('__table__', None) or name                #可以得到table表的名字，attr,name是传入的
+                                                                        #__table__是在models.py中存在的
+                                                                        #   不清粗的东西都是有来源的，往回找
         logging.info('found model: %s (table: %s)' % (name, tableName))
         mappings = dict()                                               #map映射是一个字典，元组
                                                                         #   获取所有的Field和主键
@@ -142,6 +147,7 @@ class ModelMetaclass(type):                                             #模型�
         for k, v in attrs.items():                                      #在属性中查找k值
                                                                         #   属性是什么呢？就是类中定义的内容
                                                                         #   每一项！！定义的各个变量
+                                                                        #属性变量包括两部分：名字+存储格式
             if isinstance(v, Field):                                    #返回一个Field类型的东西，
                                                                         #   或者递归滴包含Field也可以
                 logging.info('  found mapping: %s ==> %s' % (k, v))     #k=关键字，v=值
@@ -154,6 +160,7 @@ class ModelMetaclass(type):                                             #模型�
                     primaryKey = k                                      #前面primaryKey = None,现在再赋值
                 else:
                     fields.append(k)                                #如果不是主键，在fields结尾添加k的值
+                                                                    #   只是属性名，没有值
         if not primaryKey:                                          #没有主键，报个错
             raise StandardError('Primary key not found.')
         for k in mappings.keys():                                   #把所有的映射中的k值都吐出来

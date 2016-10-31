@@ -186,3 +186,6 @@ def add_routes(app, module_name):                               #作者提到的
             path = getattr(fn, '__route__', None)
             if method and path:
                 add_route(app, fn)                              #调用上边的add_route
+
+#自动把handler模块的所有符合条件的函数注册了，说的有道理啊。
+#在还没有请求进来的时候，所有的函数就加载进来了。都已经放到内存中了

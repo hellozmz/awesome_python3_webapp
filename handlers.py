@@ -150,7 +150,7 @@ def authenticate(*, email, passwd):                                     #post请
 def signout(request):                                                   #退出请求，返回当前页面
     referer = request.headers.get('Referer')
     r = web.HTTPFound(referer or '/')
-    r.set_cookie(COOKIE_NAME, '-deleted-', max_age=0, httponly=True)
+    r.set_cookie(COOKIE_NAME, '-deleted-', max_age=0, httponly=True)    #把时间设置成0,cookie失效
     logging.info('user signed out.')
     return r
 
