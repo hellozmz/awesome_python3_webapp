@@ -102,7 +102,8 @@ class StringField(Field):                                               #字符�
 
 class BooleanField(Field):                                              #真假形式的查询
 
-    def __init__(self, name=None, default=False):
+    def __init__(self, name=None, default=False):                       #在class中的函数必须要有self，
+                                                                        #   相当于一个定义
         super().__init__(name, 'boolean', False, default)
 
 class IntegerField(Field):                                              #整形的查询
@@ -146,23 +147,29 @@ class ModelMetaclass(type):                                             #模型�
                 logging.info('  found mapping: %s ==> %s' % (k, v))     #k=关键字，v=值
                                                                         #k是属性，v是值
                 mappings[k] = v                                         #在映射的字典中，将k和v匹配起来
-                if v.primary_key:
+                if v.primary_key:                                       #如果是主键，那就保存起来
                     # 找到主键:
                     if primaryKey:
-                        raise StandardError('Duplicate primary key for field: %s' % k)
+                        raise StandardError('Duplicate primary key for field: %s' % k)  #主键已存在，报个重复的错
                     primaryKey = k                                      #前面primaryKey = None,现在再赋值
                 else:
-                    fields.append(k)                                #在结尾添加k的值
-        if not primaryKey:
+                    fields.append(k)                                #如果不是主键，在fields结尾添加k的值
+        if not primaryKey:                                          #没有主键，报个错
             raise StandardError('Primary key not found.')
         for k in mappings.keys():                                   #把所有的映射中的k值都吐出来
             attrs.pop(k)                                            #清空了属性的列表
         escaped_fields = list(map(lambda f: '`%s`' % f, fields))    #`:英文输入法时，Esc下边。数据库中`data`和自带的data区分
-                                                                    #   map(f = field),将field数据转到了f中。相当于做tmp
+                                                                    #map(f = field),将field数据转到了f中。相当于做tmp
+                                                                    #   map有两个参数，函数+参数
+                                                                    #lambda函数部分f: '`%s`' % f
+                                                                    #   f = '`%s`' % f
+                                                                    #这一句话的整体意义就是：把field中所有成员
+                                                                    #   存放在escaped_fields中
         attrs['__mappings__'] = mappings # 保存属性和列的映射关系      自己定义了一堆属性
         attrs['__table__'] = tableName
         attrs['__primary_key__'] = primaryKey # 主键属性名
         attrs['__fields__'] = fields # 除主键外的属性名
+        #设定好了格式？？？不懂
         attrs['__select__'] = 'select `%s`, %s from `%s`' % (primaryKey, ', '.join(escaped_fields), tableName)
                                                                     #查找     __select__ python自有变量&私有变量
         attrs['__insert__'] = 'insert into `%s` (%s, `%s`) values (%s)' % (tableName, ', '.join(escaped_fields), primaryKey, create_args_string(len(escaped_fields) + 1))
@@ -171,10 +178,11 @@ class ModelMetaclass(type):                                             #模型�
                                                                     #修改
         attrs['__delete__'] = 'delete from `%s` where `%s`=?' % (tableName, primaryKey)
                                                                     #删除
-        return type.__new__(cls, name, bases, attrs)                    #好奇？？？？？返回的什么啊
+        return type.__new__(cls, name, bases, attrs)                    #固定写法，new需要这么返回
 
 #通过app.log可以看出来：需要每个model加载一遍（user，blog，comment）
 #   加载完这几个表之后，再加载里面的id等，就是把models.py里面的内容同加载进来，日志中就会输出这些内容
+#   另外，ORM中的内容只在装载app的时候出现一遍，然后就不用再运行了
 
 class Model(dict, metaclass=ModelMetaclass):                            #定义一个模型层的类！
 
@@ -203,7 +211,7 @@ class Model(dict, metaclass=ModelMetaclass):                            #定义�
                 setattr(self, key, value)
         return value
 
-    @classmethod
+    @classmethod                                                        #类方法
     @asyncio.coroutine
     def findAll(cls, where=None, args=None, **kw):                      #查找
         ' find objects by where clause. '
@@ -273,7 +281,12 @@ class Model(dict, metaclass=ModelMetaclass):                            #定义�
 
     @asyncio.coroutine
     def remove(self):                                                   #删除
+                                                                        #结合着前面的
         args = [self.getValue(self.__primary_key__)]
         rows = yield from execute(self.__delete__, args)
+        #attrs['__delete__'] = 'delete from `%s` where `%s`=?' % (tableName, primaryKey)
+        #def execute(sql, args, autocommit=True):
+        #递归着看回去，找出关系
+        #   目前的结论是：execute需要传入两个参数
         if rows != 1:
             logging.warn('failed to remove by primary key: affected rows: %s' % rows)
