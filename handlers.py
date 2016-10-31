@@ -100,9 +100,10 @@ def get_blog(id):                                                       #得到�
                                                                         #返回一个写博客的页面
     blog = yield from Blog.find(id)
     comments = yield from Comment.findAll('blog_id=?', [id], orderBy='created_at desc')
+                                                                        #评论要求降序排列
     for c in comments:
         c.html_content = text2html(c.content)
-    blog.html_content = markdown2.markdown(blog.content)
+    blog.html_content = markdown2.markdown(blog.content)                #markdown2在这出现了，控制高亮吧
     return {
         '__template__': 'blog.html',
         'blog': blog,
@@ -175,7 +176,7 @@ def manage_blogs(*, page='1'):                                          #管理�
 @get('/manage/blogs/create')
 def manage_create_blog():                                               #新写一篇博客
     return {
-        '__template__': 'manage_blog_edit.html',
+        '__template__': 'manage_blog_edit.html',                        #返回的内容很方便：直接是一个渲染的模板
         'id': '',
         'action': '/api/blogs'
     }

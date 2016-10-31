@@ -43,6 +43,14 @@ def post(path):                                                 #得到path后�
         return wrapper
     return decorator
 
+# ---------------------------- 使用inspect模块中的signature方法来获取函数的参数，实现一些复用功能--
+# 关于inspect.Parameter 的  kind 类型有5种：
+# POSITIONAL_ONLY       只能是位置参数
+# POSITIONAL_OR_KEYWORD 可以是位置参数也可以是关键字参数
+# VAR_POSITIONAL            相当于是 *args
+# KEYWORD_ONLY          关键字参数且提供了key
+# VAR_KEYWORD           相当于是 **kw
+
 def get_required_kw_args(fn):                                   #得到请求的参数。作者是要获得传入的参数
     args = []                                                   #保存在列表中
     params = inspect.signature(fn).parameters
@@ -73,6 +81,7 @@ def has_var_kw_arg(fn):                                         #检测是否有
             return True
 
 def has_request_arg(fn):                                        #检测是否有请求的变量
+                                                                #   查看是否存在参数叫做request
     sig = inspect.signature(fn)
     params = sig.parameters
     found = False
@@ -84,16 +93,25 @@ def has_request_arg(fn):                                        #检测是否有
             raise ValueError('request parameter must be the last named parameter in function: %s%s' % (fn.__name__, str(sig)))
     return found
 
+# RequestHandler目的就是从URL处理函数（如handlers.index）中分析其需要接收的参数，从web.request对象中获取必要的参数，
+# 调用URL处理函数，然后把结果转换为web.Response对象，这样，就完全符合aiohttp框架的要求：
+
 class RequestHandler(object):                                   #处理请求的主函数
 
     def __init__(self, app, fn):                                #先来一个初始化，将各个变量赋值
         self._app = app
-        self._func = fn
+        self._func = fn                                         #函数的属性设置为传入的函数
         self._has_request_arg = has_request_arg(fn)             #True or False
         self._has_var_kw_arg = has_var_kw_arg(fn)               #调用has_var_kw_arg函数，判断True or False
         self._has_named_kw_args = has_named_kw_args(fn)         #True or False
         self._named_kw_args = get_named_kw_args(fn)             #调用get_named_kw_args函数，得到参数中名字
         self._required_kw_args = get_required_kw_args(fn)
+
+# __call__方法的代码逻辑:
+# 1.定义kw对象，用于保存参数
+# 2.判断URL处理函数是否存在参数，如果存在则根据是POST还是GET方法将request请求内容保存到kw
+# 3.如果kw为空(说明request没有请求内容)，则将match_info列表里面的资源映射表赋值给kw；如果不为空则把命名关键字参数的内容给kw
+# 4.完善_has_request_arg和_required_kw_args属性
 
     @asyncio.coroutine
     def __call__(self, request):                                #这个__call__就是把参数取出来。很重要，值得看！！！
@@ -134,16 +152,17 @@ class RequestHandler(object):                                   #处理请求的
                 if k in kw:
                     logging.warning('Duplicate arg name in named arg and kw args: %s' % k)
                 kw[k] = v
-        if self._has_request_arg:
+        if self._has_request_arg:                               #查看请求的参数
+                                                                #   完善这个函数
             kw['request'] = request
         # check required kw:
         if self._required_kw_args:
             for name in self._required_kw_args:
                 if not name in kw:
                     return web.HTTPBadRequest('Missing argument: %s' % name)
-        logging.info('call with args: %s' % str(kw))
+        logging.info('call with args: %s' % str(kw))            #这句可以在app.log中查看
         try:
-            r = yield from self._func(**kw)
+            r = yield from self._func(**kw)                     #传入什么函数，就做什么处理
             return r
         except APIError as e:
             return dict(error=e.error, data=e.data, message=e.message)
