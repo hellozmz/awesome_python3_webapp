@@ -36,9 +36,9 @@ def init_jinja2(app, **kw):                                         #初始化�
     if path is None:                                                #没有的话，就加入自己的模板，几乎都没有
         path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates') #前端模板的文件路径=当前路径+templates
     logging.info('set jinja2 template path: %s' % path)             #打印出来：jinja2加载成功
-    env = Environment(loader=FileSystemLoader(path), **options)     #jinja2的和心类，功能是保存配置，全局对象和模板路径的
+    env = Environment(loader=FileSystemLoader(path), **options)     #jinja2的核心类，功能是保存配置，全局对象和模板路径的
     filters = kw.get('filters', None)                               #传入参数中是否有过滤器这个项，提取出这个参数
-    if filters is not None:                                         #如果没有这个参数的值，自己进行赋值
+    if filters is not None:                                         #有这个参数的值，进行赋值
         for name, f in filters.items():
             env.filters[name] = f
     app['__templating__'] = env                                     #给模板赋值，前边有了env，存储的模板路径
@@ -165,13 +165,15 @@ def datetime_filter(t):                                             #时间过�
     if delta < 86400:
         return u'%s小时前' % (delta // 3600)
     if delta < 604800:
-        return u'%s天前' % (delta // 86400)
+        return u'%s天前' % (delta // 86400)                           #一天86400秒，用的可是地板除啊
     dt = datetime.fromtimestamp(t)
     return u'%s年%s月%s日' % (dt.year, dt.month, dt.day)
 
 @asyncio.coroutine                                                  #整个函数的入口
 def init(loop):
     yield from orm.create_pool(loop=loop, **configs.db)             #加入orm中的pool，这个池的实现参见其具体实现
+                                                                    #   在config_default.py中，
+                                                                    #   属性为登录数据库的参数：用户密码数据库等
     app = web.Application(loop=loop, middlewares=[                  #app中加入好多参数，参考图片，loop为传入参数，
         logger_factory, auth_factory, response_factory              #   处理前的中间件。整体参见图片
                                                                     #   这三个参数都在前面定义了，都属于中间层的函数
@@ -185,6 +187,10 @@ def init(loop):
                                                                     #   博客整体框架单间完成，就可以在handlers中
                                                                     #   加入各个路径的处理函数。一个小宝藏！
                                                                     #   自己可以在这里面加入自己想要的各个功能
+                                                                    #这不是什么handlers库，而是handlers.py
+                                                                    #   处理函数都在handlers.py中
+                                                                    #   注册顺序是按照处理函数名字的正序排列
+                                                                    #   都是被@get和@post装饰的函数
     add_static(app)                                                 #加载静态文件，查了一下coroweb，有说明
                                                                     #   把/static/文件夹下的内容加进来
     srv = yield from loop.create_server(app.make_handler(), '127.0.0.1', 9000)      #创建了一个服务器

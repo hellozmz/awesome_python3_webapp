@@ -29,6 +29,7 @@ def create_pool(loop, **kw):                                            #增加�
         loop=loop                                                       #循环
                                                                         #说一下get(a,b)，python自带的函数，返回
                                                                         #   字典中名字a的项，如果没有返回b值
+                                                                        #**kw中包含的是config_default.py中内容
     )
 
 @asyncio.coroutine
