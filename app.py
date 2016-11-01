@@ -46,9 +46,13 @@ def init_jinja2(app, **kw):                                         #初始化�
 @asyncio.coroutine                                                  #拦截器中加载的函数
 def logger_factory(app, handler):                                   #主要进行在控制窗口打印，注意观察，传入的参数是
                                                                     #   运行的app和处理函数handler。第一个中间层参数
+                                                                    #   那么问题来了：
+                                                                    #   handler是一个函数，在哪定义的？？？
     @asyncio.coroutine                                              #factory可以理解成组件，集合的意思
     def logger(request):                                            #传入请求
         logging.info('Request: %s %s' % (request.method, request.path))     #输出格式
+                                                                    #request.method ==> GET, POST
+                                                                    #request.path ==> 路径/, /api/manager/, api/blogs
         # yield from asyncio.sleep(0.3)
         return (yield from handler(request))                        #处理好的请求
     return logger                                                   #反正就是按照固定格式往控制窗口中打印输出
