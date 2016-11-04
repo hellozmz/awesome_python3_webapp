@@ -99,13 +99,14 @@ def has_request_arg(fn):                                        #检测是否有
 class RequestHandler(object):                                   #处理请求的主函数
 
     def __init__(self, app, fn):                                #先来一个初始化，将各个变量赋值
-        self._app = app
+        self._app = app                                         #前面这两个是需要外来赋值的
         self._func = fn                                         #函数的属性设置为传入的函数
-        self._has_request_arg = has_request_arg(fn)             #True or False
-        self._has_var_kw_arg = has_var_kw_arg(fn)               #调用has_var_kw_arg函数，判断True or False
-        self._has_named_kw_args = has_named_kw_args(fn)         #True or False
-        self._named_kw_args = get_named_kw_args(fn)             #调用get_named_kw_args函数，得到参数中名字
-        self._required_kw_args = get_required_kw_args(fn)
+                                                                #接下来的都要用到传入的函数fn
+        self._has_request_arg = has_request_arg(fn)             #是否有request参数 ==> True or False
+        self._has_var_kw_arg = has_var_kw_arg(fn)               #是否有变长字典参数，判断True or False
+        self._has_named_kw_args = has_named_kw_args(fn)         #是否存在关键字参数 ==> True or False
+        self._named_kw_args = get_named_kw_args(fn)             #调用get_named_kw_args函数，所有关键字参数
+        self._required_kw_args = get_required_kw_args(fn)       #所有没有默认值的参数
 
 # __call__方法的代码逻辑:
 # 1.定义kw对象，用于保存参数
@@ -115,6 +116,10 @@ class RequestHandler(object):                                   #处理请求的
 
     @asyncio.coroutine
     def __call__(self, request):                                #这个__call__就是把参数取出来。很重要，值得看！！！
+                                                                #RequestHandler目的就是从URL函数中分析其需要接收的参数，
+                                                                #   从request中获取必要的参数，调用URL函数，
+                                                                #   然后把结果转换为web.Response对象
+                                                                #   request就是url请求
         kw = None
         if self._has_var_kw_arg or self._has_named_kw_args or self._required_kw_args:   #判断至少有一个True才可以
             if request.method == 'POST':                        #处理post请求
@@ -125,10 +130,10 @@ class RequestHandler(object):                                   #处理请求的
                     params = yield from request.json()
                     if not isinstance(params, dict):
                         return web.HTTPBadRequest('JSON body must be object.')
-                    kw = params
+                    kw = params                                 #得到关键字
                 elif ct.startswith('application/x-www-form-urlencoded') or ct.startswith('multipart/form-data'):
                     params = yield from request.post()
-                    kw = dict(**params)
+                    kw = dict(**params)                         #get得到关键字
                 else:
                     return web.HTTPBadRequest('Unsupported Content-Type: %s' % request.content_type)
             if request.method == 'GET':                         #处理get请求
@@ -136,71 +141,90 @@ class RequestHandler(object):                                   #处理请求的
                 if qs:
                     kw = dict()
                     for k, v in parse.parse_qs(qs, True).items():
-                        kw[k] = v[0]
-        if kw is None:                                          #在上一个if判断中已经被赋值，若没有赋值，则重新赋值
+                        kw[k] = v[0]                            #得到关键字
+        if kw is None:                                          #在前几个if判断中已经被赋值，若没有赋值，则重新赋值
+                                                                #   没有在GET或POST取得参数，match_info所有到kw中
             kw = dict(**request.match_info)
-        else:
-            if not self._has_var_kw_arg and self._named_kw_args:#即使赋值了，也检查一下有效性
-                # remove all unamed kw:
+        else:                                       #没有变长字典参数且有关键字参数，把关键字提取出来，忽略变长字典参数
+            if not self._has_var_kw_arg and self._named_kw_args:#即使赋值了，也检查一下有效性，有关键字参数
+                # remove all unamed kw:                         #移除掉所有未被指定的参数
                 copy = dict()
-                for name in self._named_kw_args:
+                for name in self._named_kw_args:                #在关键字参数中
                     if name in kw:
-                        copy[name] = kw[name]
+                        copy[name] = kw[name]                   #这部分似曾相识，把指定的保存起来，未指定的就任他去吧
                 kw = copy
-            # check named arg:
+            # check named arg:                                  #named被指定的，检测被指定的参数
+                                                                #   检查URL参数和http方法得到的参数是否有重合
             for k, v in request.match_info.items():
                 if k in kw:
                     logging.warning('Duplicate arg name in named arg and kw args: %s' % k)
                 kw[k] = v
         if self._has_request_arg:                               #查看请求的参数
                                                                 #   完善这个函数
-            kw['request'] = request
+            kw['request'] = request                             #给kw字典加入一项，把request参数提取出来
         # check required kw:
-        if self._required_kw_args:
+        if self._required_kw_args:                              #检查没有默认值的关键字是否已经赋值
             for name in self._required_kw_args:
                 if not name in kw:
                     return web.HTTPBadRequest('Missing argument: %s' % name)
+                                                                #前边处理，从现在开始调用函数
         logging.info('call with args: %s' % str(kw))            #这句可以在app.log中查看
         try:
             r = yield from self._func(**kw)                     #传入什么函数，就做什么处理
-            return r
+                                                                #   主要原因是，kw已经加载完成，所以，
+                                                                #   可以把kw当作参数加进去
+                                                                #_func是自己加进来的函数，自己想要什么处理，就用什么函数
+            return r                                            #返回的是处理好的结果
         except APIError as e:
             return dict(error=e.error, data=e.data, message=e.message)
+
+#廖大的意思是想把URL参数和GET、POST方法得到的参数彻底分离。
+#
+#    GET、POST方法的参数必需是KEYWORD_ONLY
+#    URL参数是POSITIONAL_OR_KEYWORD
+#    REQUEST参数要位于最后一个POSITIONAL_OR_KEYWORD之后的任何地方
 
 def add_static(app):                                            #把/static/文件夹中的文件加到目标文件
                                                                 #   添加静态文件路径
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
                                                                 #会拼接成路径：./static/
-    app.router.add_static('/static/', path)
+                                                                #这个路径完全是自己设定
+    app.router.add_static('/static/', path)                     #把前面的路径加进来，作为app的static路径
     logging.info('add static %s => %s' % ('/static/', path))
 
-def add_route(app, fn):                                         #加入到路径中？？？？？？不理解啊
+def add_route(app, fn):                                         #注册处理url函数
                                                                 #这个是作者提到的注册函数（一个）。下边的是多个的
                                                                 #加入的是路径，代表着加入的是加入的模板页面
                                                                 #参考day2，我认为是绑定页面的函数
     method = getattr(fn, '__method__', None)                    #主要包括两个方法：get,post
     path = getattr(fn, '__route__', None)                       #传入的路径
+                                                                #getattr是python的字自省函数。这句话的意思是：
+                                                                #   fn中有__route__属性，输出它的内容，没有输出None(自定义)
+                                                                #method, path的内容都定义了
     if path is None or method is None:
         raise ValueError('@get or @post not defined in %s.' % str(fn))
     if not asyncio.iscoroutinefunction(fn) and not inspect.isgeneratorfunction(fn):
         fn = asyncio.coroutine(fn)
-    logging.info('add route %s %s => %s(%s)' % (method, path, fn.__name__, ', '.join(inspect.signature(fn).parameters.keys())))
+    logging.info('add route %s %s => %s(%s)' % (method, path,   #get/post, 处理的路径
+        fn.__name__, ', '.join(inspect.signature(fn).parameters.keys())))   #函数的名字，函数的关键字
     app.router.add_route(method, path, RequestHandler(app, fn)) #其实是有默认的方法的，写出来都是查看错误的
                                                                 #来看一下啊，一共三个参数，分别代表：
                                                                 #   请求的方法，路径，返回的页面！！！！重点！！！
 
-def add_routes(app, module_name):                               #作者提到的注册函数
-    n = module_name.rfind('.')                                  #查看一下'.'的个数
-    if n == (-1):
+def add_routes(app, module_name):                               #作者提到的注册函数，传入的是module_name，
+                                                                #   具体使用的时候就是'handlers.py'
+    n = module_name.rfind('.')                                  #查看一下'.'最后出现的位置
+    if n == (-1):                                               #'.'没有出现
         mod = __import__(module_name, globals(), locals())
-    else:
-        name = module_name[n+1:]
+    else:                                                       #'.'出现了
+        name = module_name[n+1:]                                #显示model_name[n+1],也就是'.'后边所有的内容
+                                                                #   其实就是这样的，module_name前边是方法：后边具体名字
         mod = getattr(__import__(module_name[:n], globals(), locals(), [name]), name)
     for attr in dir(mod):
-        if attr.startswith('_'):
+        if attr.startswith('_'):                                #下划线开始的是requesthandler自己的属性
             continue
-        fn = getattr(mod, attr)
-        if callable(fn):
+        fn = getattr(mod, attr)                                 #找到module的attr属性
+        if callable(fn):                                        #fn如果是可以调用的，则进行调用
             method = getattr(fn, '__method__', None)
             path = getattr(fn, '__route__', None)
             if method and path:
@@ -208,3 +232,5 @@ def add_routes(app, module_name):                               #作者提到的
 
 #自动把handler模块的所有符合条件的函数注册了，说的有道理啊。
 #在还没有请求进来的时候，所有的函数就加载进来了。都已经放到内存中了
+#参考INFO:root:add route POST /api/blogs => api_create_blog(request, name, summary, content)
+#   结合handlers.py看

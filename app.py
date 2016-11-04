@@ -51,6 +51,7 @@ def logger_factory(app, handler):                                   #主要进�
     @asyncio.coroutine                                              #factory可以理解成组件，集合的意思
     def logger(request):                                            #传入请求
         logging.info('Request: %s %s' % (request.method, request.path))     #输出格式
+                                                                    #给出请求的样子
                                                                     #request.method ==> GET, POST
                                                                     #request.path ==> 路径/, /api/manager/, api/blogs
         # yield from asyncio.sleep(0.3)
@@ -61,8 +62,8 @@ def logger_factory(app, handler):                                   #主要进�
 def auth_factory(app, handler):                                     #验证用户登录
     @asyncio.coroutine                                              #将解析出的cookies用于验证
     def auth(request):
-        logging.info('check user: %s %s' % (request.method, request.path))
-        request.__user__ = None
+        logging.info('check user: %s %s' % (request.method, request.path))  #在查看用户权限中，查看请求
+        request.__user__ = None                                     #先把用户设置成空值
         cookie_str = request.cookies.get(COOKIE_NAME)
         if cookie_str:                                              #查看用户的类型：并且把当前用户的名字和邮箱
                                                                     #   打印到日志中
@@ -98,7 +99,7 @@ def data_factory(app, handler):                                     #搜集请�
 # ***********************************************响应处理（重点，重点，重点，重要的事说三遍）***************************************************
 # 总结一下
 # 请求对象request的处理工序流水线先后依次是：
-#       logger_factory->response_factory->RequestHandler().__call__->get或post->handler
+#       logger_factory->response_factory->  RequestHandler.__call__->get或post->handler
 # 对应的响应对象response的处理工序流水线先后依次是:
 #       由handler构造出要返回的具体对象
 #       然后在这个返回的对象上加上'__method__'和'__route__'属性，以标识别这个对象并使接下来的程序容易处理
@@ -116,7 +117,8 @@ def response_factory(app, handler):                                 #处理后�
     @asyncio.coroutine
     def response(request):
         logging.info('Response handler...')                         #先打印个状态，这个输出了好多次
-        r = yield from handler(request)
+                                                                    #   这个是已经开始回复了
+        r = yield from handler(request)                             #从请求中处理得到结果
         if isinstance(r, web.StreamResponse):                       #不同条件进行不同的处理
                                                                     #   主要是根据r的类别进行分类的
             return r                                                #判断是否为web回复流
@@ -142,7 +144,7 @@ def response_factory(app, handler):                                 #处理后�
                 resp = web.Response(body=app['__templating__'].get_template(template).render(**r).encode('utf-8'))
                                                                     #render设置渲染方式？
                                                                     #构造Response对象
-                resp.content_type = 'text/html;charset=utf-8'
+                resp.content_type = 'text/html;charset=utf-8'       #   返回去的类型是html
                 return resp
         if isinstance(r, int) and t >= 100 and t < 600:
             return web.Response(t)
@@ -206,3 +208,7 @@ loop = asyncio.get_event_loop()                                     #和app_1.py
 loop.run_until_complete(init(loop))                                 #天荒地老的循环。注意里边的init，在上边的函数，
 #loop.run_until_complete( asyncio.wait([init( loop )]) )            #   返回的是服务器端的服务（nginx）
 loop.run_forever()
+
+#在浏览器中，request和response是一对的。
+#请求来自url，也就是request，经过自己的一堆处理，给出一个response
+#处理url的函数可以传入参数request，不过request参数都是可以被省略掉的

@@ -225,7 +225,8 @@ class Model(dict, metaclass=ModelMetaclass):                            #定义�
         ' find objects by where clause. '
         sql = [cls.__select__]                                          #在142行处有具体的话
         if where:                                                       #选择查找的条件
-            sql.append('where')
+            sql.append('where')                                         #   一旦有了要查找的东西，直接架上
+                                                                        #   select语句，再外加上查找的内容就行了
             sql.append(where)
         if args is None:
             args = []

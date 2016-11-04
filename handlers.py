@@ -100,6 +100,7 @@ def get_blog(id):                                                       #得到�
                                                                         #返回一个写博客的页面
     blog = yield from Blog.find(id)
     comments = yield from Comment.findAll('blog_id=?', [id], orderBy='created_at desc')
+                                                                        #id直接就可以取出来，明白
                                                                         #评论要求降序排列
     for c in comments:
         c.html_content = text2html(c.content)
