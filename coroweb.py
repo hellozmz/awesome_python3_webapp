@@ -45,14 +45,33 @@ def post(path):                                                 #得到path后�
         return wrapper
     return decorator
 
+'''
+Name    Meaning
+POSITIONAL_ONLY         Value must be supplied as a positional argument.
+                        Python has no explicit syntax for defining positional-only parameters, but many built-in and 
+                            extension module functions (especially those that accept only one or two parameters) accept them.
+POSITIONAL_OR_KEYWORD   Value may be supplied as either a keyword or positional argument (this is the standard binding 
+                            behaviour for functions implemented in Python.)
+VAR_POSITIONAL          A tuple of positional arguments that aren’t bound to any other parameter. This corresponds to 
+                            a *args parameter in a Python function definition.
+KEYWORD_ONLY            Value must be supplied as a keyword argument. Keyword only parameters are those which appear 
+                            after a * or *args entry in a Python function definition.
+VAR_KEYWORD             A dict of keyword arguments that aren’t bound to any other parameter. This corresponds to a 
+                            **kwargs parameter in a Python function definition.
+'''
+
 # ---------------------------- 使用inspect模块中的signature方法来获取函数的参数，实现一些复用功能--
 # 关于inspect.Parameter 的  kind 类型有5种：
 # POSITIONAL_ONLY       只能是位置参数
 # POSITIONAL_OR_KEYWORD 可以是位置参数也可以是关键字参数
-# VAR_POSITIONAL            相当于是 *args
+# VAR_POSITIONAL        相当于是 *args，位置的参数列表，没有名字的参数列
 # KEYWORD_ONLY          关键字参数且提供了key
-# VAR_KEYWORD           相当于是 **kw
+# VAR_KEYWORD           相当于是 **kw，关键字的参数列表，有名字的参数字典
 
+#   * 用来传递任意个无名字参数，这些参数会一个Tuple的形式访问。
+#   参数列存储在元组中
+#   ** 用来处理传递任意个有名字的参数，这些参数用dict来访问。
+#   参数有名字，保存在字典中
 
 #廖大的意思是想把URL参数和GET、POST方法得到的参数彻底分离。
 #
@@ -78,6 +97,8 @@ def get_required_kw_args(fn):                                   #得到请求的
     for name, param in params.items():
         if param.kind == inspect.Parameter.KEYWORD_ONLY and param.default == inspect.Parameter.empty:
                                                                 #handler 参数里只有KEYWORD_ONLY 才加入到args列表里。
+                                                                #   并且还是没有默认值的
+                                                                #   可以看出来，对param的要求很严格，只有关键字才可以
                                                                 #如果替换成or param.kind==inspect.Parameter.POSITIONAL_OR_KEYWORD)
                                                                 #   greeting(name,request) ==> 可以去掉一个*,
                                                                 #   具体问题自己仔细分析
@@ -88,7 +109,7 @@ def get_named_kw_args(fn):                                      #得到关键字
     args = []
     params = inspect.signature(fn).parameters
     for name, param in params.items():
-        if param.kind == inspect.Parameter.KEYWORD_ONLY:        #和请求相比，条件变宽泛了
+        if param.kind == inspect.Parameter.KEYWORD_ONLY:        #和请求相比，条件变宽泛了。有默认值的
             args.append(name)
     return tuple(args)
 
@@ -96,13 +117,14 @@ def has_named_kw_args(fn):                                      #存在有关键
     params = inspect.signature(fn).parameters
     for name, param in params.items():
         if param.kind == inspect.Parameter.KEYWORD_ONLY:        #查看参数类型，只有关键字就返回真
-                                                                #   *后边的参数
+                                                                #   必须是关键字
             return True
 
 def has_var_kw_arg(fn):                                         #检测是否有变长字典参数 ==> 检验
     params = inspect.signature(fn).parameters
     for name, param in params.items():
-        if param.kind == inspect.Parameter.VAR_KEYWORD:         #被python定义的参数，**后边的参数
+        if param.kind == inspect.Parameter.VAR_KEYWORD:         #被python定义的参数，**后边的参数，有名字的参数
+                                                                #是关键字的类型，有关键字就行
             return True
 
 def has_request_arg(fn):                                        #检测是否有请求的参数
@@ -128,7 +150,7 @@ class RequestHandler(object):                                   #处理请求的
         self._func = fn                                         #函数的属性设置为传入的函数
                                                                 #接下来的都要用到传入的函数fn
         self._has_request_arg = has_request_arg(fn)             #是否有request参数 ==> True or False
-        self._has_var_kw_arg = has_var_kw_arg(fn)               #是否有变长字典参数，判断True or False
+        self._has_var_kw_arg = has_var_kw_arg(fn)               #是否有变长字典参数 ==> True or False
         self._has_named_kw_args = has_named_kw_args(fn)         #是否存在关键字参数 ==> True or False
         self._named_kw_args = get_named_kw_args(fn)             #调用get_named_kw_args函数，所有关键字参数
         self._required_kw_args = get_required_kw_args(fn)       #所有没有默认值的参数
@@ -150,26 +172,26 @@ class RequestHandler(object):                                   #处理请求的
             if request.method == 'POST':                        #处理post请求
                 if not request.content_type:                    #处理请求中的类型错误
                     return web.HTTPBadRequest('Missing Content-Type.')  
-                ct = request.content_type.lower()
+                ct = request.content_type.lower()               #转换成小写的类型了，方便接下来的处理
                 if ct.startswith('application/json'):
-                    params = yield from request.json()
+                    params = yield from request.json()          #获取请求中的json数据
                     if not isinstance(params, dict):
                         return web.HTTPBadRequest('JSON body must be object.')
-                    kw = params                                 #得到关键字
+                    kw = params                                 #得到关键字 ==> 自己构造出来关键字
                 elif ct.startswith('application/x-www-form-urlencoded') or ct.startswith('multipart/form-data'):
                     params = yield from request.post()
-                    kw = dict(**params)                         #get得到关键字
+                    kw = dict(**params)                         #得到关键字 ==> 自己构造出来关键字
                 else:
                     return web.HTTPBadRequest('Unsupported Content-Type: %s' % request.content_type)
             if request.method == 'GET':                         #处理get请求
-                qs = request.query_string
+                qs = request.query_string                       #取得地址栏参数值
                 if qs:
-                    kw = dict()
+                    kw = dict()                                 #定义一个字典型的关键字字典
                     for k, v in parse.parse_qs(qs, True).items():
                         kw[k] = v[0]                            #得到关键字
         if kw is None:                                          #在前几个if判断中已经被赋值，若没有赋值，则重新赋值
                                                                 #   没有在GET或POST取得参数，match_info所有到kw中
-            kw = dict(**request.match_info)
+            kw = dict(**request.match_info)                     #kw是字典形式的
         else:                                       #没有变长字典参数且有关键字参数，把关键字提取出来，忽略变长字典参数
             if not self._has_var_kw_arg and self._named_kw_args:#即使赋值了，也检查一下有效性，有关键字参数
                 # remove all unamed kw:                         #移除掉所有未被指定的参数
