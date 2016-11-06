@@ -318,3 +318,13 @@ def api_delete_blog(request, *, id):                                    删除�
     blog = yield from Blog.find(id)
     yield from blog.remove()
     return dict(id=id)
+
+#下面是新添加进来的一个处理的功能，
+#通过这段代码就可以发现，自机箱要什么样的处理，自己写就行了，
+#过程也是很简单的，
+#1.记录路径
+#2.给出返回值
+@get("/greeting/{name}")
+async def greeting(*,name,request):#加了星号，name和request才是KEYWORD_ONLY，这样科学吗？
+    logging.info('name : %s' % name)
+    return web.Response(body=b"<h1>greeting</h1>"  )

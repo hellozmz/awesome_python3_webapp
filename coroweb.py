@@ -12,6 +12,7 @@ from aiohttp import web                                         #加载web框架
 from apis import APIError                                       #加载自己写的apis的出错函数
 
 def get(path):                                                  #留作装饰器来用
+                                                                #可以传入参数的
                                                                 #   主要功能是得到路径
                                                                 #   可以看出来，一共三个def,三个return
     '''
@@ -28,6 +29,7 @@ def get(path):                                                  #留作装饰器
         return wrapper
     return decorator
 
+                                                                #装饰器的功能就是传入参数，传入函数，然后进行修饰，处理
 def post(path):                                                 #得到path后的路径，怎么得到的就不知道了
                                                                 #具体的可以看一下get和post的区别
                                                                 #   是否幂等get更加安全，post会修改数据库
@@ -51,15 +53,38 @@ def post(path):                                                 #得到path后�
 # KEYWORD_ONLY          关键字参数且提供了key
 # VAR_KEYWORD           相当于是 **kw
 
+
+#廖大的意思是想把URL参数和GET、POST方法得到的参数彻底分离。
+#
+#    GET、POST方法的参数必需是KEYWORD_ONLY
+#    URL参数是POSITIONAL_OR_KEYWORD
+#    request参数要位于最后一个POSITIONAL_OR_KEYWORD之后的任何地方
+
+'''
+def __init__(self, app, fn):
+        self._app = app
+        self._func = fn
+        self._has_request_arg = has_request_arg(fn)           # 是否有request参数
+        self._has_var_kw_arg = has_var_kw_arg(fn)             # 是否有变长字典参数
+        self._has_named_kw_args = has_named_kw_args(fn)       # 是否存在关键字参数
+        self._named_kw_args = get_named_kw_args(fn)           # 所有关键字参数
+        self._required_kw_args = get_required_kw_args(fn)     # 所有没有默认值的关键字参数
+'''
+
 def get_required_kw_args(fn):                                   #得到请求的参数。作者是要获得传入的参数
+                                                                #   针对的主要是没有默认值的参数
     args = []                                                   #保存在列表中
     params = inspect.signature(fn).parameters
     for name, param in params.items():
         if param.kind == inspect.Parameter.KEYWORD_ONLY and param.default == inspect.Parameter.empty:
+                                                                #handler 参数里只有KEYWORD_ONLY 才加入到args列表里。
+                                                                #如果替换成or param.kind==inspect.Parameter.POSITIONAL_OR_KEYWORD)
+                                                                #   greeting(name,request) ==> 可以去掉一个*,
+                                                                #   具体问题自己仔细分析
             args.append(name)                                   #将符合条件的所有名字都存储起来
     return tuple(args)                                          #又把结果放在了元组中，不再可变了
 
-def get_named_kw_args(fn):                                      #得到名字的参数
+def get_named_kw_args(fn):                                      #得到关键字参数 ==> 里面存在关键字
     args = []
     params = inspect.signature(fn).parameters
     for name, param in params.items():
@@ -67,20 +92,20 @@ def get_named_kw_args(fn):                                      #得到名字的
             args.append(name)
     return tuple(args)
 
-def has_named_kw_args(fn):
+def has_named_kw_args(fn):                                      #存在有关键字的参数 ==> 只是进行检验的
     params = inspect.signature(fn).parameters
     for name, param in params.items():
         if param.kind == inspect.Parameter.KEYWORD_ONLY:        #查看参数类型，只有关键字就返回真
                                                                 #   *后边的参数
             return True
 
-def has_var_kw_arg(fn):                                         #检测是否有变量
+def has_var_kw_arg(fn):                                         #检测是否有变长字典参数 ==> 检验
     params = inspect.signature(fn).parameters
     for name, param in params.items():
         if param.kind == inspect.Parameter.VAR_KEYWORD:         #被python定义的参数，**后边的参数
             return True
 
-def has_request_arg(fn):                                        #检测是否有请求的变量
+def has_request_arg(fn):                                        #检测是否有请求的参数
                                                                 #   查看是否存在参数叫做request
     sig = inspect.signature(fn)
     params = sig.parameters
@@ -171,6 +196,7 @@ class RequestHandler(object):                                   #处理请求的
         logging.info('call with args: %s' % str(kw))            #这句可以在app.log中查看
         try:
             r = yield from self._func(**kw)                     #传入什么函数，就做什么处理
+                                                                #   关键是要获取kw参数
                                                                 #   主要原因是，kw已经加载完成，所以，
                                                                 #   可以把kw当作参数加进去
                                                                 #_func是自己加进来的函数，自己想要什么处理，就用什么函数
@@ -210,6 +236,9 @@ def add_route(app, fn):                                         #注册处理url
     app.router.add_route(method, path, RequestHandler(app, fn)) #其实是有默认的方法的，写出来都是查看错误的
                                                                 #来看一下啊，一共三个参数，分别代表：
                                                                 #   请求的方法，路径，返回的页面！！！！重点！！！
+                                                                #   调用了RequestHandler方法，这个方法是自己定义的
+                                                                #   handler=RequestHandler(app,fn)
+                                                                #   app.router.add_route(method,path,handler)
 
 def add_routes(app, module_name):                               #作者提到的注册函数，传入的是module_name，
                                                                 #   具体使用的时候就是'handlers.py'
