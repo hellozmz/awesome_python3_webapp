@@ -167,20 +167,25 @@ class RequestHandler(object):                                   #处理请求的
                                                                 #   从request中获取必要的参数，调用URL函数，
                                                                 #   然后把结果转换为web.Response对象
                                                                 #   request就是url请求
-        kw = None
-        if self._has_var_kw_arg or self._has_named_kw_args or self._required_kw_args:   #判断至少有一个True才可以
+        kw = None                                               #这里面的逻辑我还是不清楚，太奇怪了
+        if self._has_var_kw_arg or self._has_named_kw_args or self._required_kw_args:   #判断只要有一个True就可以
+                                                                #   也就是说，只要存在参数就可以进行get/post操作
+                                                                # required_kw_args是named_kw_args的真子集，第三个条件多余
             if request.method == 'POST':                        #处理post请求
-                if not request.content_type:                    #处理请求中的类型错误
+                                                                #   post主要是进行提交数据的，所以下面都是检测格式提交的
+                if not request.content_type:                    #查看媒体类型，在http协议消息头中
                     return web.HTTPBadRequest('Missing Content-Type.')  
-                ct = request.content_type.lower()               #转换成小写的类型了，方便接下来的处理
-                if ct.startswith('application/json'):
+                ct = request.content_type.lower()               #存在媒体类型，将它转换成小写的类型了，方便接下来的处理
+                if ct.startswith('application/json'):           #JSON格式
                     params = yield from request.json()          #获取请求中的json数据
+                                                                #   yield from一个线程进行并发处理
                     if not isinstance(params, dict):
                         return web.HTTPBadRequest('JSON body must be object.')
-                    kw = params                                 #得到关键字 ==> 自己构造出来关键字
+                    kw = params                                 #得到关键字 ==> 保存json数据，应该是list格式
                 elif ct.startswith('application/x-www-form-urlencoded') or ct.startswith('multipart/form-data'):
+                                                                #表单默认的提交数据的格式 或者 表单中进行文件上传
                     params = yield from request.post()
-                    kw = dict(**params)                         #得到关键字 ==> 自己构造出来关键字
+                    kw = dict(**params)                         #得到关键字 ==> 转化成字典的样子
                 else:
                     return web.HTTPBadRequest('Unsupported Content-Type: %s' % request.content_type)
             if request.method == 'GET':                         #处理get请求
@@ -191,9 +196,11 @@ class RequestHandler(object):                                   #处理请求的
                         kw[k] = v[0]                            #得到关键字
         if kw is None:                                          #在前几个if判断中已经被赋值，若没有赋值，则重新赋值
                                                                 #   没有在GET或POST取得参数，match_info所有到kw中
-            kw = dict(**request.match_info)                     #kw是字典形式的
+            kw = dict(**request.match_info)                     #kw是字典形式的，获取的也是字典格式的
         else:                                       #没有变长字典参数且有关键字参数，把关键字提取出来，忽略变长字典参数
-            if not self._has_var_kw_arg and self._named_kw_args:#即使赋值了，也检查一下有效性，有关键字参数
+            if not self._has_var_kw_arg and self._named_kw_args:#
+                                                                #如果没有变长字典参数且有关键字参数，
+                                                                #   把所有关键字参数提取出来，忽略所有变长字典参数
                 # remove all unamed kw:                         #移除掉所有未被指定的参数
                 copy = dict()
                 for name in self._named_kw_args:                #在关键字参数中
