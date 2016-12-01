@@ -10,6 +10,9 @@ import aiomysql
 def log(sql, args=()):                                                  #打印日志的函数
     logging.info('SQL: %s' % sql)
 
+'''
+创建数据库连接池，主要的变量为登录数据库的用户名，密码，还有数据的格式等设置条件
+'''
 @asyncio.coroutine
 def create_pool(loop, **kw):                                            #增加一个全局连接池
                                                                         #   有了连接池，尽量做到了复用。
@@ -31,7 +34,9 @@ def create_pool(loop, **kw):                                            #增加�
                                                                         #   字典中名字a的项，如果没有返回b值
                                                                         #**kw中包含的是config_default.py中内容
     )
-
+'''
+将select操作实现出来，使用的时候直接使用select函数，就相当于直接操作数据库一样。相当于一个翻译，转化成数据库可使用的语言
+'''
 @asyncio.coroutine
 def select(sql, args, size=None):                                       #执行select语句，查找
     log(sql, args)                                                      #打印出来功能日志
@@ -180,6 +185,7 @@ class ModelMetaclass(type):                                             #模型�
         #设定好了格式？？？不懂
         attrs['__select__'] = 'select `%s`, %s from `%s`' % (primaryKey, ', '.join(escaped_fields), tableName)
                                                                     #查找     __select__ python自有变量&私有变量
+                                                                    #这个变量是使用者自己定义的，好好理解
         attrs['__insert__'] = 'insert into `%s` (%s, `%s`) values (%s)' % (tableName, ', '.join(escaped_fields), primaryKey, create_args_string(len(escaped_fields) + 1))
                                                                     #增加
         attrs['__update__'] = 'update `%s` set %s where `%s`=?' % (tableName, ', '.join(map(lambda f: '`%s`=?' % (mappings.get(f).name or f), fields)), primaryKey)
@@ -261,6 +267,10 @@ class Model(dict, metaclass=ModelMetaclass):                            #定义�
             return None
         return rs[0]['_num_']
 
+'''
+前面定义的各个操作，比如说select,execute都是留给下面使用的。具体用法上面定义，在这里使用。
+所以一个函数可以这样理解，前面书的话都是铺垫，只有在最后是作者的主要想法。 
+'''
     @classmethod                                                        #接下来的cls代表的可就是前边的Model了
     @asyncio.coroutine
     def find(cls, pk):                                                  #查找

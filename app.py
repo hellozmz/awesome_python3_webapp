@@ -35,6 +35,7 @@ def init_jinja2(app, **kw):                                         #初始化�
     path = kw.get('path', None)                                     #从参数中获取path字段，也就是模板文件的位置
     if path is None:                                                #没有的话，就加入自己的模板，几乎都没有
         path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates') #前端模板的文件路径=当前路径+templates
+                                                                    #   这个templates可以更换名字的，对应的也要把文件夹改名字
     logging.info('set jinja2 template path: %s' % path)             #打印出来：jinja2加载成功
     env = Environment(loader=FileSystemLoader(path), **options)     #jinja2的核心类，功能是保存配置，全局对象和模板路径的
     filters = kw.get('filters', None)                               #传入参数中是否有过滤器这个项，提取出这个参数
@@ -61,6 +62,7 @@ def logger_factory(app, handler):                                   #主要进�
 @asyncio.coroutine                                                  #拦截器中加载的函数
 def auth_factory(app, handler):                                     #验证用户登录
     @asyncio.coroutine                                              #将解析出的cookies用于验证
+                                                                    #   后续的URL处理可以拿到登录用户
     def auth(request):
         logging.info('check user: %s %s' % (request.method, request.path))  #在查看用户权限中，查看请求
         request.__user__ = None                                     #先把用户设置成空值
@@ -214,3 +216,8 @@ loop.run_forever()
 #在浏览器中，request和response是一对的。
 #请求来自url，也就是request，经过自己的一堆处理，给出一个response
 #处理url的函数可以传入参数request，不过request参数都是可以被省略掉的
+
+#web.Response是给出的应答，返回给客户看的
+#   你给他一条请求，他回复你一个应答
+#app.router.add_route处理url的函数，接收请求，匹配出对应的返回函数。
+#   可以看出来，这个需要引用上面的函数，把上边构造出来的应答页面展示给用户

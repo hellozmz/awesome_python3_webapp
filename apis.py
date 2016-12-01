@@ -16,6 +16,7 @@ class Page(object):                                                 #声明一�
 
     def __init__(self, item_count, page_index=1, page_size=10):     #初始化，把传入的值加到函数中
         '''
+                                                                    #默认指向第一页，每页十条数据，已经测试过
         Init Pagination by item_count, page_index and page_size.
 
         >>> p1 = Page(100, 1)
@@ -40,8 +41,8 @@ class Page(object):                                                 #声明一�
         >>> p3.limit
         10
         '''
-        self.item_count = item_count
-        self.page_size = page_size
+        self.item_count = item_count                                #
+        self.page_size = page_size                                  #页面大小
         self.page_count = item_count // page_size + (1 if item_count % page_size > 0 else 0)
         if (item_count == 0) or (page_index > self.page_count):
             self.offset = 0

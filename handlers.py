@@ -89,10 +89,10 @@ def index(*, page='1'):                                                 #get请�
     else:
         blogs = yield from Blog.findAll(orderBy='created_at desc', limit=(page.offset, page.limit))
     return {
-        '__template__': 'blogs.html',
-        #'__template__': 'test.html',
-        'page': page,
-        'blogs': blogs
+        '__template__': 'blogs.html',                                   #返回的内容不只一项
+        #'__template__': 'test.html',                                   #指定模板
+        'page': page,                                                   #指定页码
+        'blogs': blogs                                                  #指定blog，什么还不清楚
     }
 
 @get('/blog/{id}')
@@ -285,6 +285,7 @@ def api_get_blog(*, id):                                                #得到�
 
 @post('/api/blogs')
 def api_create_blog(request, *, name, summary, content):                #创建博客的接口
+                                                                        #日志的创建页
     check_admin(request)
     if not name or not name.strip():
         raise APIValueError('name', 'name cannot be empty.')
