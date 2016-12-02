@@ -7,7 +7,7 @@ __author__ = 'Michael Liao'
 JSON API definition.
 '''
 
-import json, logging, inspect, functools
+import json, logging, inspect, functools                            #在python中包含多少个这样的库，值得学习
 
 class Page(object):                                                 #声明一个类，用来显示页面
     '''
@@ -61,6 +61,7 @@ class Page(object):                                                 #声明一�
     __repr__ = __str__
 
 class APIError(Exception):                                          #给出各种错误的显示信息
+                                                                    #Exception肯定是模板中自带的
     '''
     the base APIError which contains error(required), data(optional) and message(optional).
     '''
@@ -71,6 +72,7 @@ class APIError(Exception):                                          #给出各�
         self.message = message
 
 class APIValueError(APIError):                                      #无效的值和错误的值
+                                                                    #   
     '''
     Indicate the input value has error or invalid. The data specifies the error field of input form.
     '''

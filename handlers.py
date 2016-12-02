@@ -83,7 +83,8 @@ def index(*, page='1'):                                                 #get请�
     num = yield from Blog.findNumber('count(id)')                       #在models中导入的Blog。
                                                                         #不过findNumber的属性是在orm.py的Model中定义的
                                                                         #
-    page = Page(num)
+    #page = Page(num)
+    page = Page(num, page_index)
     if num == 0:
         blogs = []
     else:
