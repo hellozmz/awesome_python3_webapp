@@ -15,6 +15,10 @@ def next_id():                                              #这个next_id很值
                                                             #
     return '%015d%s000' % (int(time.time() * 1000), uuid.uuid4().hex)
                                                             #next_id()结构说明：前15位为时间，接下来32位是uuid的hex,最后3位0
+#ORM的主要体现部分
+#Object Relation Mapping，对象关系映射
+#把这里面的对象  映射到  数据库的表中
+
 
 class User(Model):                                          #定义出用户‘模块’
     __table__ = 'users'                                     #操作的表名是：user

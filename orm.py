@@ -41,7 +41,7 @@ def create_pool(loop, **kw):                                            #增加�
 def select(sql, args, size=None):                                       #执行select语句，查找
     log(sql, args)                                                      #打印出来功能日志
     global __pool
-    with (yield from __pool) as conn:
+    with (yield from __pool) as conn:                                   #在连接的库中，新建一条连接
         cur = yield from conn.cursor(aiomysql.DictCursor)               #打开游标
         yield from cur.execute(sql.replace('?', '%s'), args or ())      #SQL语句的占位符和Mysql的不一样
                                                                         #SQL:?  Mysql:%s
@@ -50,7 +50,7 @@ def select(sql, args, size=None):                                       #执行s
         if size:                                                        #主要的部分应该是在这里
             rs = yield from cur.fetchmany(size)                         #根据不同情况，提取不同匹配项
         else:                                                           #匹配指定数目的，具体根据size看
-            rs = yield from cur.fetchall()                              #匹配所有的
+            rs = yield from cur.fetchall()                              #匹配所有的，默认
         yield from cur.close()                                          #关闭数据库游标
         logging.info('rows returned: %s' % len(rs))                     #打印出日志
         return rs                                                       #返回匹配的项。fetchmany是库中的
@@ -72,7 +72,7 @@ def execute(sql, args, autocommit=True):                                #执行�
             if not autocommit:
                 yield from conn.rollback()                              #如果出现问题了，及时回滚
             raise
-        return affected                                                 #返回整数，表示处理的行数
+        return affected                                                 #返回整数，表示需要处理的行数
 
 #注意区分select和其他几个操作Insert等区别：execute()函数和select()函数所不同的是，cursor对象不返回结果集，
 #   而是通过rowcount返回结果数。===>select()返回结果，其他操作返回行数。工作的主体是select
@@ -88,13 +88,17 @@ class Field(object):                                                    #先定�
                                                                         #   返回索引。主要是用来查询的
                                                                         #   属性的基类   
     def __init__(self, name, column_type, primary_key, default):        #初始化：名字，列，主键，默认值
-        self.name = name
-        self.column_type = column_type
-        self.primary_key = primary_key
-        self.default = default
+        self.name = name                                                #通过看返回值可以发现，name是（对象）的名字
+        self.column_type = column_type                                  #记录在mysql表中的数据类型
+        self.primary_key = primary_key                                  #记录是否位主键
+        self.default = default                                          #记录默认值
 
+                                                                        #下面主要用来测试使用
     def __str__(self):                                                  #返回几个值，类的名字，列的类型，名字
         return '<%s, %s:%s>' % (self.__class__.__name__, self.column_type, self.name)
+                                                                        #依次是类的名字
+                                                                        #   类的属性，记录数据类型
+                                                                        #   对象的名字
 
 class StringField(Field):                                               #字符串形式的查询
 
@@ -129,15 +133,18 @@ class TextField(Field):                                                 #文字�
 
 #Model只是一个基类，如何读出它的子类的映射信息，比如说User的映射信息，就需要meta class
 #这样继承自Model的子类User等就可以扫描出来，并且存储到类属性中，如__table__,__mappings__等
+#这个厉害，能够把所有的信息提取出来，留给继承自它的类使用继承自它的函数可以根据独到的内容去实现构造的函数
+#扫描映射关系，把结果存到自己的属性中
 
 class ModelMetaclass(type):                                             #模型层的基类
+                                                                        #功能是要读取映射信息
 
     def __new__(cls, name, bases, attrs):                               #新建一个属性
                                                                         #   __new__参数要有cls,另外
                                                                         #   功能是提取当前类的参数，
                                                                         #   cls代表着这个类ModelMetaclass
                                                                         #   并且他还会先于__init__运行
-                                                                        #   绑定的是累的对象，不是实例对象
+                                                                        #   绑定的是类的对象，不是实例对象
         if name=='Model':                                               #排除Model类本身
             return type.__new__(cls, name, bases, attrs)                #传进来的参数全都返回了
         tableName = attrs.get('__table__', None) or name                #可以得到table表的名字，attr,name是传入的
@@ -146,10 +153,13 @@ class ModelMetaclass(type):                                             #模型�
         logging.info('found model: %s (table: %s)' % (name, tableName))
         mappings = dict()                                               #map映射是一个字典，元组
                                                                         #   获取所有的Field和主键
-        fields = []                                                     #列表
+        fields = []                                                     #存放属性的列表
+                                                                        #列表
                                                                         #   列表=可调整数组，
-                                                                        #   元组=不可调整数组=>代码更加安全
+                                                                        #   元组=初始化后不可调整数组=>代码更加安全
         primaryKey = None                                               #未设置主键
+                                                                        #接下来的部分厉害了，自己开始读取自己所有属性
+                                                                        #   这就是连自己都不放过的表现啊
         for k, v in attrs.items():                                      #在属性中查找k值
                                                                         #   属性是什么呢？就是类中定义的内容
                                                                         #   每一项！！定义的各个变量
@@ -183,25 +193,34 @@ class ModelMetaclass(type):                                             #模型�
         attrs['__primary_key__'] = primaryKey # 主键属性名
         attrs['__fields__'] = fields # 除主键外的属性名
         #设定好了格式？？？不懂
+        #直接调用__select__就可以有这个字符串代入进去了
         attrs['__select__'] = 'select `%s`, %s from `%s`' % (primaryKey, ', '.join(escaped_fields), tableName)
-                                                                    #查找     __select__ python自有变量&私有变量
+                                                                    #查找     __select__ 添加的属性
                                                                     #这个变量是使用者自己定义的，好好理解
+                                                                    #合并成各个成员连接起来的字符转，中间用‘，’隔开
+                                                                    #在查询的时候，选定表，各个属性
         attrs['__insert__'] = 'insert into `%s` (%s, `%s`) values (%s)' % (tableName, ', '.join(escaped_fields), primaryKey, create_args_string(len(escaped_fields) + 1))
                                                                     #增加
+                                                                    #这句话是打印出来看的
+                                                                    #在插入的时候，选定表，属性，主键和所有值
         attrs['__update__'] = 'update `%s` set %s where `%s`=?' % (tableName, ', '.join(map(lambda f: '`%s`=?' % (mappings.get(f).name or f), fields)), primaryKey)
                                                                     #修改
         attrs['__delete__'] = 'delete from `%s` where `%s`=?' % (tableName, primaryKey)
                                                                     #删除
-        return type.__new__(cls, name, bases, attrs)                    #固定写法，new需要这么返回
+                                                                    #这个删除太狠了，直接找到主键，把一整条数据都删除了
+        return type.__new__(cls, name, bases, attrs)                    #固定写法，new需要这么返回，主要是更新了attrs
 
 #通过app.log可以看出来：需要每个model加载一遍（user，blog，comment）
 #   加载完这几个表之后，再加载里面的id等，就是把models.py里面的内容同加载进来，日志中就会输出这些内容
 #   另外，ORM中的内容只在装载app的时候出现一遍，然后就不用再运行了
 
 class Model(dict, metaclass=ModelMetaclass):                            #定义一个模型层的类！
-
+                                                                        #其实model作为一个字典的子类，另外又
+                                                                        #   实现一个方法dict.filed并不是又很多实际作用
+                                                                        #   这里面还实现了find的几个函数，另外还有
+                                                                        #   增删改查的操作。
     def __init__(self, **kw):                                           #初始化
-        super(Model, self).__init__(**kw)
+        super(Model, self).__init__(**kw)                               #   这个初始话厉害了
 
     def __getattr__(self, key):                                         #针对x.y形式的查询
         try:
@@ -286,7 +305,8 @@ class Model(dict, metaclass=ModelMetaclass):                            #定义�
     def save(self):                                                     #增加
         args = list(map(self.getValueOrDefault, self.__fields__))
         args.append(self.getValueOrDefault(self.__primary_key__))
-        rows = yield from execute(self.__insert__, args)
+        rows = yield from execute(self.__insert__, args)                #看这个函数，execute里面的参数都传好了
+                                                                        #   如果返回状态有问题，下面会给出错误
         if rows != 1:
             logging.warn('failed to insert record: affected rows: %s' % rows)
 

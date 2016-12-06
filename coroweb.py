@@ -161,7 +161,8 @@ class RequestHandler(object):                                   #处理请求的
 # 3.如果kw为空(说明request没有请求内容)，则将match_info列表里面的资源映射表赋值给kw；如果不为空则把命名关键字参数的内容给kw
 # 4.完善_has_request_arg和_required_kw_args属性
 
-    @asyncio.coroutine
+    @asyncio.coroutine                                          #装饰，使接下来的操作都是并发进行的，
+                                                                #   能够加快速度，不必等待，一直工作
     def __call__(self, request):                                #这个__call__就是把参数取出来。很重要，值得看！！！
                                                                 #RequestHandler目的就是从URL函数中分析其需要接收的参数，
                                                                 #   从request中获取必要的参数，调用URL函数，

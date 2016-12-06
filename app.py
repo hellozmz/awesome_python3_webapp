@@ -91,6 +91,8 @@ def data_factory(app, handler):                                     #搜集请�
             elif request.content_type.startswith('application/x-www-form-urlencoded'):  #提交数据的类型2
                 request.__data__ = yield from request.post()
                 logging.info('request form: %s' % str(request.__data__))
+                                                                    #是这样的，将提交数据的请求区分的更细致了
+                                                                    #   处理不同的请求格式
         return (yield from handler(request))                        #将数据处理好了！！这个神奇啊，直接开始处理了
                                                                     #   原因是这样的，这个函数仅仅是中间函数，
                                                                     #   所以，他也就是仅仅把函数过程打印成日志
