@@ -91,7 +91,7 @@ def __init__(self, app, fn):
 '''
 
 def get_required_kw_args(fn):                                   #得到请求的参数。作者是要获得传入的参数
-                                                                #   针对的主要是没有默认值的参数
+    #有命名关键字&&默认值为空                                     #   针对的主要是没有默认值的参数
     args = []                                                   #保存在列表中
     params = inspect.signature(fn).parameters
     for name, param in params.items():
@@ -99,6 +99,7 @@ def get_required_kw_args(fn):                                   #得到请求的
                                                                 #handler 参数里只有KEYWORD_ONLY 才加入到args列表里。
                                                                 #   并且还是没有默认值的
                                                                 #   可以看出来，对param的要求很严格，只有关键字才可以
+                                                                #   命名关键字&&默认值为空
                                                                 #如果替换成or param.kind==inspect.Parameter.POSITIONAL_OR_KEYWORD)
                                                                 #   greeting(name,request) ==> 可以去掉一个*,
                                                                 #   具体问题自己仔细分析
@@ -110,14 +111,14 @@ def get_named_kw_args(fn):                                      #得到关键字
     params = inspect.signature(fn).parameters
     for name, param in params.items():
         if param.kind == inspect.Parameter.KEYWORD_ONLY:        #和请求相比，条件变宽泛了。有默认值的
-            args.append(name)
+            args.append(name)                                   #   只要命名关键字
     return tuple(args)
 
 def has_named_kw_args(fn):                                      #存在有关键字的参数 ==> 只是进行检验的
     params = inspect.signature(fn).parameters
     for name, param in params.items():
         if param.kind == inspect.Parameter.KEYWORD_ONLY:        #查看参数类型，只有关键字就返回真
-                                                                #   必须是关键字
+                                                                #   只验证命名关键字
             return True
 
 def has_var_kw_arg(fn):                                         #检测是否有变长字典参数 ==> 检验
@@ -125,6 +126,7 @@ def has_var_kw_arg(fn):                                         #检测是否有
     for name, param in params.items():
         if param.kind == inspect.Parameter.VAR_KEYWORD:         #被python定义的参数，**后边的参数，有名字的参数
                                                                 #是关键字的类型，有关键字就行
+                                                                #   验证有命名关键字列表
             return True
 
 def has_request_arg(fn):                                        #检测是否有请求的参数
@@ -137,6 +139,7 @@ def has_request_arg(fn):                                        #检测是否有
             found = True
             continue
         if found and (param.kind != inspect.Parameter.VAR_POSITIONAL and param.kind != inspect.Parameter.KEYWORD_ONLY and param.kind != inspect.Parameter.VAR_KEYWORD):
+                                                                #验证传入列表什么类型都不是的（非位置&&非命名关键字）
             raise ValueError('request parameter must be the last named parameter in function: %s%s' % (fn.__name__, str(sig)))
     return found
 
@@ -150,10 +153,15 @@ class RequestHandler(object):                                   #处理请求的
         self._func = fn                                         #函数的属性设置为传入的函数
                                                                 #接下来的都要用到传入的函数fn
         self._has_request_arg = has_request_arg(fn)             #是否有request参数 ==> True or False
+                                                                #   检测是否有请求
         self._has_var_kw_arg = has_var_kw_arg(fn)               #是否有变长字典参数 ==> True or False
+                                                                #   有命名关键字参数列表
         self._has_named_kw_args = has_named_kw_args(fn)         #是否存在关键字参数 ==> True or False
+                                                                #   只有命名关键字
         self._named_kw_args = get_named_kw_args(fn)             #调用get_named_kw_args函数，所有关键字参数
-        self._required_kw_args = get_required_kw_args(fn)       #所有没有默认值的参数
+                                                                #   有命名关键字
+        self._required_kw_args = get_required_kw_args(fn)       #
+                                                                #   有命名关键字&&默认值为空
 
 # __call__方法的代码逻辑:
 # 1.定义kw对象，用于保存参数
@@ -163,7 +171,8 @@ class RequestHandler(object):                                   #处理请求的
 
     @asyncio.coroutine                                          #装饰，使接下来的操作都是并发进行的，
                                                                 #   能够加快速度，不必等待，一直工作
-    def __call__(self, request):                                #这个__call__就是把参数取出来。很重要，值得看！！！
+                                                                #   进行协程的处理
+    def __call__(self, request):                                #这个__call__实现的就是把参数取出来。很重要，值得看！！！
                                                                 #RequestHandler目的就是从URL函数中分析其需要接收的参数，
                                                                 #   从request中获取必要的参数，调用URL函数，
                                                                 #   然后把结果转换为web.Response对象
@@ -180,9 +189,10 @@ class RequestHandler(object):                                   #处理请求的
                 if ct.startswith('application/json'):           #JSON格式
                     params = yield from request.json()          #获取请求中的json数据
                                                                 #   yield from一个线程进行并发处理
+                                                                #   往回写入的数据很多都是走的这个函数
                     if not isinstance(params, dict):
                         return web.HTTPBadRequest('JSON body must be object.')
-                    kw = params                                 #得到关键字 ==> 保存json数据，应该是list格式
+                    kw = params                                 #得到关键字 ==> 保存json数据，应该是dict格式
                 elif ct.startswith('application/x-www-form-urlencoded') or ct.startswith('multipart/form-data'):
                                                                 #表单默认的提交数据的格式 或者 表单中进行文件上传
                     params = yield from request.post()
@@ -190,11 +200,21 @@ class RequestHandler(object):                                   #处理请求的
                 else:
                     return web.HTTPBadRequest('Unsupported Content-Type: %s' % request.content_type)
             if request.method == 'GET':                         #处理get请求
-                qs = request.query_string                       #取得地址栏参数值
+                qs = request.query_string                       #取得地址栏参数值,就是'?'后面的值。
+                                                                #   如果值比较多，可以使用'&'来分开
+                                                                #此处的值应该主要处理page=2(^)的
+                                                                #   还有编辑文章时的id等
                 if qs:
                     kw = dict()                                 #定义一个字典型的关键字字典
                     for k, v in parse.parse_qs(qs, True).items():
                         kw[k] = v[0]                            #得到关键字
+                                                                #使用过程中主要是翻页时候进行调用
+                        '''
+                        k: page
+                        v: ['2']
+                        kw[k]: 2
+                        kw: {'page': '2'}
+                        '''
         if kw is None:                                          #在前几个if判断中已经被赋值，若没有赋值，则重新赋值
                                                                 #   没有在GET或POST取得参数，match_info所有到kw中
             kw = dict(**request.match_info)                     #kw是字典形式的，获取的也是字典格式的
@@ -265,7 +285,7 @@ def add_route(app, fn):                                         #注册处理url
         fn.__name__, ', '.join(inspect.signature(fn).parameters.keys())))   #函数的名字，函数的关键字
     app.router.add_route(method, path, RequestHandler(app, fn)) #其实是有默认的方法的，写出来都是查看错误的
                                                                 #来看一下啊，一共三个参数，分别代表：
-                                                                #   请求的方法，路径，返回的页面！！！！重点！！！
+                                                                #   请求的方法，路径，返回的页面(URL具体处理过程)！！！！重点！！！
                                                                 #   调用了RequestHandler方法，这个方法是自己定义的
                                                                 #   handler=RequestHandler(app,fn)
                                                                 #   app.router.add_route(method,path,handler)

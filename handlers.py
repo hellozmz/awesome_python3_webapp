@@ -198,8 +198,9 @@ def manage_users(*, page='1'):                                          #管理�
         'page_index': get_page_index(page)
     }
 
-@get('/api/comments')
+@get('/api/comments')                                                   #这个是命名关键字参数来接收
 def api_comments(*, page='1'):                                          #评论的接口
+                                                                        #比较值得关注的就是前面的*这个标识符
     page_index = get_page_index(page)
     num = yield from Comment.findNumber('count(id)')
     p = Page(num, page_index)
@@ -208,7 +209,7 @@ def api_comments(*, page='1'):                                          #评论�
     comments = yield from Comment.findAll(orderBy='created_at desc', limit=(p.offset, p.limit))
     return dict(page=p, comments=comments)
 
-@post('/api/blogs/{id}/comments')
+@post('/api/blogs/{id}/comments')                                       #命名关键字参数随处可见啊
 def api_create_comment(id, request, *, content):                        #创建评论的接口
     user = request.__user__
     if user is None:
