@@ -5,7 +5,7 @@
 Override configurations.
 '''
 
-__author__ = 'Michael Liao'
+__author__ = 'hellozmz'
 
 configs = {
     'db': {
