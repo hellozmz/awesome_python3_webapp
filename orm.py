@@ -55,6 +55,21 @@ def select(sql, args, size=None):                                       #执行s
         logging.info('rows returned: %s' % len(rs))                     #打印出日志
         return rs                                                       #返回匹配的项。fetchmany是库中的
 
+def select_like(sql, args, size=None):                                       #执行like语句
+    log(sql, args)
+    global __pool
+    with (yield from __pool) as conn:
+        cur = yield from conn.cursor(aiomysql.DictCursor)
+        yield from cur.execute(sql.replace('?', '%s'), args or ())
+        if size:
+            rs = yield from cur.fetchmany(size)
+        else:
+            rs = yield from cur.fetchall()
+        yield from cur.close()
+        logging.info('rows returned: %s' % len(rs))
+        return rs
+
+
 @asyncio.coroutine
 def execute(sql, args, autocommit=True):                                #执行各种操作：插入，修改，删除
     log(sql)                                                            #可以看出来，查询和其他的操作传参数有区别
