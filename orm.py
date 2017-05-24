@@ -49,26 +49,12 @@ def select(sql, args, size=None):                                       #执行s
                                                                         #   只需要加入参数就好->括号中的都是
         if size:                                                        #主要的部分应该是在这里
             rs = yield from cur.fetchmany(size)                         #根据不同情况，提取不同匹配项
+                                                                        #python连接数据库的api,还有execute等
         else:                                                           #匹配指定数目的，具体根据size看
             rs = yield from cur.fetchall()                              #匹配所有的，默认
         yield from cur.close()                                          #关闭数据库游标
         logging.info('rows returned: %s' % len(rs))                     #打印出日志
         return rs                                                       #返回匹配的项。fetchmany是库中的
-
-def select_like(sql, args, size=None):                                       #执行like语句
-    log(sql, args)
-    global __pool
-    with (yield from __pool) as conn:
-        cur = yield from conn.cursor(aiomysql.DictCursor)
-        yield from cur.execute(sql.replace('?', '%s'), args or ())
-        if size:
-            rs = yield from cur.fetchmany(size)
-        else:
-            rs = yield from cur.fetchall()
-        yield from cur.close()
-        logging.info('rows returned: %s' % len(rs))
-        return rs
-
 
 @asyncio.coroutine
 def execute(sql, args, autocommit=True):                                #执行各种操作：插入，修改，删除
