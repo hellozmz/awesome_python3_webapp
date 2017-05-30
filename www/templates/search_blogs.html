@@ -1,0 +1,49 @@
+{% extends '__base__.html' %}
+
+{% block title %}搜索{% endblock %}
+
+{% block beforehead %}
+
+<script>
+</script>
+
+{% endblock %}
+
+{% block content %}
+
+    <div class="uk-width-medium-3-4">
+    {% for blog in blogs %}
+        <article class="uk-article">
+            <h2><a href="/blog/{{ blog.id }}">{{ blog.name }}</a></h2>
+            <p class="uk-article-meta">发表于{{ blog.created_at|datetime }}</p>
+            <p>{{ blog.summary }}</p>
+            <p><a href="/blog/{{ blog.id }}">继续阅读 <i class="uk-icon-angle-double-right"></i></a></p>
+        </article>
+        <hr class="uk-article-divider">
+    {% endfor %}
+<!--
+    {{ pagination('/search?page=', page) }}
+-->
+    </div>
+
+    <div class="uk-width-medium-1-4">
+        <div class="uk-panel uk-panel-header">
+<!--
+           <iframe width="257" scrolling="no" height="80" frameborder="0" allowtransparency="true" src="http://i.tianqi.com/index.php?c=code&id=8&bgc=%23&bdc=%23C6C6C6&icon=1&num=3"></iframe>
+-->
+           <h3 class="uk-panel-title">今日天气</h3>         
+           <iframe width="257" scrolling="no" height="80" frameborder="0" allowtransparency="true" src="http://i.tianqi.com/index.php?c=code&id=8&icon=1&num=3"></iframe> 
+
+            <br><br>
+            <h3 class="uk-panel-title">快速访问</h3>
+            <ul class="uk-list uk-list-line">
+                <li class="reLeft"><i class="uk-icon-thumbs-o-up"></i> <a target="_blank" href="https://www.baidu.com ">百度</a></li>
+                <li class="reLeft"><i class="uk-icon-thumbs-o-up"></i> <a target="_blank" href="https://www.douban.com">豆瓣</a></li>
+                <li class="reLeft"><i class="uk-icon-thumbs-o-up"></i> <a target="_blank" href="http://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000">Python教程</a></li>
+                <li class="reLeft"><i class="uk-icon-thumbs-o-up"></i> <a target="_blank" href="https://github.com/hellozmz/awesome_python3_webapp">Git</a></li>
+                <li class="reLeft"><i class="uk-icon-thumbs-o-up"></i> <a target="_blank" href="http://stackoverflow.com/">stack overflow</a></li>
+            </ul>
+        </div>
+    </div>
+
+{% endblock %}

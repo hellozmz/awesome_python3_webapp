@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Zmz's all Users</title>
+</head>
+<body>
+    <p id="demo1">此时日期</p>
+    <button type="button" onclick="displayDate()">日期</button>
+    <h1>All users</h1>
+    <p>name / email</p>
+    {% for u in users %}
+    <p>{{ u.name }} / {{ u.email }}</p>
+    {% endfor %}
+    <br><br>
+    <script>
+        function displayDate(){
+            document.getElementById("demo1").innerHTML=Date();
+        }
+        function displayTime(){
+            document.getElementById("demo2").innerHTML=new Date().toLocaleTimeString();
+        }
+    </script>
+    
+
+    
+    <p id="demo2">此时时间</p>
+    <button type="button" onclick="displayTime()">时间</button>
+</body>
+</html>

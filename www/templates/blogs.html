@@ -1,0 +1,90 @@
+{% extends '__base__.html' %}
+
+{% block title %}日志{% endblock %}
+
+{% block beforehead %}
+
+<script src="/static/js/vue.min.js"></script>
+
+
+{% endblock %}
+
+{% block content %}
+
+    <div class="uk-width-medium-3-4">
+    {% for blog in blogs %}
+        <article class="uk-article">
+            <h2><a href="/blog/{{ blog.id }}">{{ blog.name }}</a></h2>
+            <p class="uk-article-meta">发表于{{ blog.created_at|datetime }}</p>
+            <p>{{ blog.summary }}</p>
+            <p><a href="/blog/{{ blog.id }}">继续阅读 <i class="uk-icon-angle-double-right"></i></a></p>
+        </article>
+        <hr class="uk-article-divider">
+    {% endfor %}
+    {{ pagination('/?page=', page) }}
+    </div>
+
+    <div class="uk-width-medium-1-4">
+        <div class="uk-panel uk-panel-header">
+            <div>
+                <h3 class="uk-panel-title">今日天气</h3>
+                <iframe scrolling="yes" allowtransparency="true" src="http://i.tianqi.com/index.php?c=code&amp;id=8&amp;icon=1&amp;num=3" frameborder="0" height="80" width="257"></iframe>
+            </div>
+            <br><br>
+
+            <div>
+                <h3 class="uk-panel-title">快速链接</h3>
+                <ul class="uk-list uk-list-line" style="width: 250px">
+                    <li class="reLeft"><i class="uk-icon-thumbs-o-up"></i> <a target="_blank" href="https://www.baidu.com ">百度</a></li>
+                <li class="reLeft"><i class="uk-icon-thumbs-o-up"></i> <a target="_blank" href="https://www.douban.com">豆瓣</a></li>
+                <li class="reLeft"><i class="uk-icon-thumbs-o-up"></i> <a target="_blank" href="http://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000">Python教程</a></li>
+                <li class="reLeft"><i class="uk-icon-thumbs-o-up"></i> <a target="_blank" href="https://github.com/hellozmz/awesome_python3_webapp">Git</a></li>
+                <li class="reLeft"><i class="uk-icon-thumbs-o-up"></i> <a target="_blank" href="http://stackoverflow.com/">stack overflow</a></li>
+                </ul>
+            </div>
+            <br><br>
+
+            <div>
+                <h3 class="uk-panel-title">搜索</h3>
+                <div id="app">
+                    <li style="float: left; margin-left: 10px">
+                        <select v-model="fanwei" name="xuanxiang" style="height: 23px">
+                            <option value="name" >题目</option>
+                            <option value="summary" >摘要</option>
+                            <option value="content" >内容</option>
+                            <!--
+                            <option value="">时间</option>
+                            -->
+                        </select>
+                    </li>
+                    <li style="float: left; margin-left: 1px;">
+                        <input v-model="neirong" placeholder="输入查找内容……" style="width:130px; height:23px"></input>
+                        
+                    </li>
+                    <li style="float: left; margin-left: 10px;">
+                        {% raw %}
+                        <!--
+                        <span>Message: {{ qishi + '/' + fanwei + '/' + neirong }}</span>
+                        -->
+                        <a href= "{{ qishi + '/' + fanwei + '/' + neirong }}" >
+                            <button style="height: 23px">搜索</button>
+                        </a>
+                        {% endraw %}
+                    </li>
+                </div>
+            </div>
+        </div>
+    </div>
+<script>
+var vm = new Vue({
+    el: '#app',
+    data: {
+        qishi: 'search',
+        fanwei: 'name',
+        neirong: '',
+        message: 'search/name/1'
+  }
+})
+</script>
+{% endblock %}
+

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Vue 测试实例</title>
+<!--
+<script src="https://cdn.bootcss.com/vue/2.2.2/vue.min.js"></script>
+-->
+<!--
+    <script src="/static/js/feature.js"></script>
+    <script src="/static/js/jquery.min.js"></script>
+    <script src="/static/js/sha1.min.js"></script>
+    <script src="/static/js/uikit.min.js"></script>
+    <script src="/static/js/sticky.min.js"></script>
+    <script src="/static/js/vue.min.js"></script>
+    <script src="/static/js/awesome.js"></script>
+-->
+<script src="http://118.190.62.78/static/js/vue.min.js"></script>
+</head>
+<body>
+<div id="app">
+  <p>input 元素：</p>
+  <input v-model="message" type="text" placeholder="编辑我……">
+  {% raw %}
+  <p>消息是: {{ message }}</p>
+    
+  <p>textarea 元素：</p>
+  <p style="white-space: pre">{{ message2 }}</p>
+  {% endraw %}
+  <textarea v-model="message2" placeholder="多行文本输入……"></textarea>
+</div>
+
+<script>
+vm = new Vue({
+  el: '#app',
+  data: {
+    message: 'Runoob',
+    message2: '菜鸟教程\r\nhttp://www.runoob.com'
+  }
+})
+
+//$('#vm').show();
+</script>
+</body>
+</html>
