@@ -1,3 +1,4 @@
+<<<<<<< HEAD
   chapter   |       add file            |        www add file                   |           content
     01      |   www, .gitignore,        |   static, favicon.ico, markdown.py    |
             |   README.MD, LICENSE      |                                       |      
@@ -16,4 +17,24 @@
     13      |                           |   pymonitor.py                        |
     14      |   conf                    |                                       |
     15      |   disk, backup, fibfile.py|                                       |
+=======
+  chapter   |       add file            |        www add file                   |           content
+    01      |   www, .gitignore,        |   static, favicon.ico, markdown.py    |
+            |   README.MD, LICENSE      |                                       |      
+    02      |                           |   app.py                              |
+    03      |                           |   orm.py                              |
+    04      |                           |   models.py                           |
+    05      |                           |   apis.py, coroweb.py, handlers.py    |
+    06      |                           |   config.py, config_default.py,       |
+            |                           |   config_override.py                  |
+    07      |                           |   templates                           |
+    08      |                           |                                       |
+    09      |                           |                                       |
+    10      |                           |                                       |
+    11      |                           |                                       |
+    12      |                           |                                       |
+    13      |                           |   pymonitor.py                        |
+    14      |   conf                    |                                       |
+    15      |   disk, backup, fibfile.py|                                       |
+>>>>>>> f40fa82e4c14655107a54ceb6fdbe2a0f934d042
     16      |   ios, android            |                                       |
