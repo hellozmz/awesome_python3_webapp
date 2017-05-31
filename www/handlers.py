@@ -24,6 +24,12 @@ def check_admin(request):
     if request.__user__ is None or not request.__user__.admin:
         raise APIPermissionError()
 
+def is_admin(request):
+    if request.__user__ is None or not request.__user__.admin:
+        return False
+    else:
+        return True
+
 def get_page_index(page_str):
     p = 1
     try:
@@ -76,7 +82,7 @@ def cookie2user(cookie_str):
         return None
 
 @get('/')
-def index(*, page='1'):
+def index(*, request, page='1'):
     page_index = get_page_index(page)
     num = yield from Blog.findNumber('count(id)')
     #page = Page(num)
@@ -84,7 +90,11 @@ def index(*, page='1'):
     if num == 0:
         blogs = []
     else:
-        blogs = yield from Blog.findAll(orderBy='created_at desc', limit=(page.offset, page.limit))
+        admin=is_admin(request)
+        if admin:
+            blogs = yield from Blog.findAll(orderBy='created_at desc', limit=(page.offset, page.limit))
+        else:
+            blogs = yield from Blog.findAll('private_blogs=?', [0], orderBy='created_at desc', limit=(page.offset, page.limit))
     return {
         '__template__': 'blogs.html',
         'page': page,
@@ -288,7 +298,7 @@ def api_create_blog(request, *, name, summary, content):
         raise APIValueError('summary', 'summary cannot be empty.')
     if not content or not content.strip():
         raise APIValueError('content', 'content cannot be empty.')
-    blog = Blog(user_id=request.__user__.id, user_name=request.__user__.name, user_image=request.__user__.image, name=name.strip(), summary=summary.strip(), content=content.strip())
+    blog = Blog(user_id=request.__user__.id, user_name=request.__user__.name, user_image=request.__user__.image, name=name.strip(), private_blogs=private_blogs, summary=summary.strip(), content=content.strip())
     yield from blog.save()
     return blog
 
