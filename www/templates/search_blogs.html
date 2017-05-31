@@ -21,8 +21,9 @@
         </article>
         <hr class="uk-article-divider">
     {% endfor %}
+    {{pagination(url, page)}}
 <!--
-    {{ pagination('/search?page=', page) }}
+    {/{ pagination('/search?page=', page) }/}
 -->
     </div>
 

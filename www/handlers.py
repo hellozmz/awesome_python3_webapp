@@ -339,13 +339,15 @@ def search_word(*, type='name', word='1', page='1'):
     page_index = get_page_index(page)
     num = yield from Blog.findNumber('count(id)')
     #select count(id) _num_ from `blogs`    根据id计数，找到blog中所有信息个数
-    page = Page(num)                        #根据页码的信息去找到要传回去的信息个数，起始和终止
+    page = Page(num, page_index)                        #根据页码的信息去找到要传回去的信息个数，起始和终止
     #blogs = yield from Blog.findAll('`name`', like='\'%%C%%\'', orderBy='created_at desc')
-    blogs = yield from Blog.findAll('`%s`' % type, like='%s' % word, orderBy='created_at desc')
+    blogs = yield from Blog.findAll('`%s`' % type, like='%s' % word, orderBy='created_at desc', limit=(page.offset, page.limit))
+    url = word + '?page='          #值得注意，只需要最后一个变量，多了会出错
     return {
         '__template__': 'search_blogs.html',
         'page': page,
-        'blogs': blogs
+        'blogs': blogs,
+        'url': url,
     }
 
 @get('/testapi')

@@ -21,10 +21,47 @@
             document.getElementById("demo2").innerHTML=new Date().toLocaleTimeString();
         }
     </script>
-    
-
-    
     <p id="demo2">此时时间</p>
     <button type="button" onclick="displayTime()">时间</button>
+
+<!--
+    <div id="test">
+        <input type="text" v-model="a">
+        <input type="text" v-model="b">
+        {% if result %}
+        <p>{{result}}</p>
+        {% endif %}
+    </div>
+
+    <script type="text/javascript">
+        $(function () {
+            // body...
+            var vm = new Vue({
+                el: '#test',
+                date: {
+                    a: 0,
+                    b: 0
+                },
+                methods: {
+                    submit: function (argument) {
+                        // body...
+                        var $form = $('#test');
+                        $form.getJSON('/showUsers', {
+                            a1: this.a,
+                            a2: this.b,
+                        }, function (err, r) {
+                            if (err) {
+                                return $form.showFormError(err);
+                            }
+                            refresh();
+                        );
+                    }
+                }
+            });
+            $('#vm').show();
+        });
+    </script>
+
+-->
 </body>
 </html>
